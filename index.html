@@ -104,13 +104,18 @@
         render();
     }
 
-    async function hostErledigt(id, aktuellerCount) {
-        await client.from("termine").update({ 
-            status: "confirmed", 
-            tausch_partner: null,
-            hosting_count: (aktuellerCount || 0) + 1 
+    async function hostErledigt(id) {
+        // Termin laden
+        const { data: termine } = await client.from("termine").select("*").eq("id", id).single();
+
+        const neuerCount = (termine.hosting_count || 0) + 1;
+
+        await client.from("termine").update({
+            hosting_count: neuerCount,
+            status: "confirmed"
         }).eq("id", id);
-        alert("Punkte aktualisiert!");
+
+        alert("Punkt wurde für " + termine.host + " gezählt!");
         render();
     }
 
@@ -212,7 +217,7 @@
                     </div>
                     <div style="display:flex; gap:5px;">
                         ${istMein && !brauchtHilfe ? `<button class="btn-cancel" onclick="markiereHilfe(${t.id})">will abgeben</button>` : ""}
-                        ${istMein && !brauchtHilfe ? `<button class="btn-done" onclick="hostErledigt(${t.id}, ${t.hosting_count})">kann hosten ✅</button>` : ""}
+                        ${istMein && !brauchtHilfe ? `<button class="btn-done" onclick="hostErledigt(${t.id})">kann hosten</button>` : ""}
                         ${brauchtHilfe && !istMein ? `<button class="btn-take" onclick="tausche(${t.id})">kann übernehmen</button>` : ""}
                     </div>
                 </div>`;
