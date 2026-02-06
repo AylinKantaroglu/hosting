@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Host-Planer Pro</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
     <style>
         :root {
             --primary: #6366f1;
@@ -16,138 +15,35 @@
             --danger: #ef4444;
             --success: #22c55e;
         }
-
-        body {
-            font-family: 'Inter', sans-serif;
-            background-color: var(--bg);
-            color: var(--text-main);
-            margin: 0;
-            display: flex;
-            justify-content: center;
-            padding: 20px 15px;
-        }
-
-        .app-container {
-            width: 100%;
-            max-width: 480px;
-        }
-
-        h1 {
-            font-size: 1.5rem;
-            font-weight: 800;
-            color: var(--primary);
-            margin-bottom: 20px;
-            text-align: center;
-        }
-
-        .user-card {
-            background: var(--card);
-            padding: 20px;
-            border-radius: 20px;
-            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
-            margin-bottom: 25px;
-        }
-
-        .input-group {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 15px;
-        }
-
-        .user-card input {
-            flex-grow: 1;
-            padding: 12px;
-            border: 2px solid #e2e8f0;
-            border-radius: 12px;
-            font-size: 1rem;
-            outline: none;
-        }
-
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 10px;
-        }
-
-        .stat-box {
-            background: #f1f5f9;
-            padding: 10px;
-            border-radius: 12px;
-            text-align: center;
-        }
-
-        .stat-box span {
-            display: block;
-            font-size: 0.75rem;
-            color: var(--text-sub);
-            text-transform: uppercase;
-        }
-
-        .stat-box b {
-            font-size: 1.1rem;
-            color: var(--primary);
-        }
-
-        .timeline {
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-        }
-
-        .event-card {
-            background: var(--card);
-            padding: 16px;
-            border-radius: 18px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-        }
-
-        .event-card.is-help {
-            border: 2px solid var(--danger);
-            background: #fffafa;
-            animation: pulse 2s infinite;
-        }
-
-        @keyframes pulse {
-            0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
-            70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
-            100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
-        }
-
+        body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var(--text-main); margin: 0; display: flex; justify-content: center; padding: 20px 15px; }
+        .app-container { width: 100%; max-width: 480px; }
+        h1 { font-size: 1.5rem; font-weight: 800; color: var(--primary); text-align: center; }
+        .user-card { background: var(--card); padding: 20px; border-radius: 20px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); margin-bottom: 25px; }
+        .input-group { display: flex; gap: 10px; margin-bottom: 15px; }
+        .user-card input { flex-grow: 1; padding: 12px; border: 2px solid #e2e8f0; border-radius: 12px; outline: none; }
+        .stats-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .stat-box { background: #f1f5f9; padding: 10px; border-radius: 12px; text-align: center; }
+        .stat-box span { display: block; font-size: 0.75rem; color: var(--text-sub); text-transform: uppercase; }
+        .stat-box b { font-size: 1.1rem; color: var(--primary); }
+        .timeline { display: flex; flex-direction: column; gap: 15px; }
+        .event-card { background: var(--card); padding: 16px; border-radius: 18px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        .event-card.is-help { border: 2px solid var(--danger); background: #fffafa; animation: pulse 2s infinite; }
+        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); } 70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); } 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); } }
         .date-info .day { font-weight: 700; font-size: 1rem; }
-        .date-info .host-name { color: var(--text-sub); font-size: 0.9rem; }
-        .date-info .host-name.me { color: var(--primary); font-weight: 600; }
-
-        button {
-            border: none;
-            padding: 10px 16px;
-            border-radius: 10px;
-            font-weight: 600;
-            font-size: 0.85rem;
-            cursor: pointer;
-        }
-
+        .host-info { font-size: 0.85rem; color: var(--text-sub); }
+        .me { color: var(--primary); font-weight: 600; }
+        button { border: none; padding: 8px 12px; border-radius: 10px; font-weight: 600; font-size: 0.75rem; cursor: pointer; margin-left: 5px; }
         .btn-save { background: var(--primary); color: white; }
         .btn-cancel { background: #fee2e2; color: var(--danger); }
         .btn-take { background: var(--success); color: white; }
-
-        .empty-state {
-            text-align: center;
-            color: var(--text-sub);
-            margin-top: 40px;
-            padding: 20px;
-            background: white;
-            border-radius: 15px;
-        }
+        .btn-done { background: #dcfce7; color: #166534; border: 1px solid var(--success); }
+        .empty-state { text-align: center; color: var(--text-sub); margin-top: 40px; padding: 20px; background: white; border-radius: 15px; }
     </style>
 </head>
 <body>
 
 <div class="app-container">
     <h1>Host-Planer</h1>
-
     <div class="user-card">
         <div class="input-group">
             <input type="text" id="meinName" placeholder="Dein Name...">
@@ -155,39 +51,26 @@
         </div>
         <div id="stats" class="stats-grid"></div>
     </div>
-
     <div id="liste" class="timeline">
-        <div class="empty-state">Verbinde zur Datenbank...</div>
+        <div class="empty-state">Lade Daten...</div>
     </div>
 </div>
 
 <script>
     const SUPABASE_URL = "https://ithgjzvwwrxmdrxzynoi.supabase.co";
     const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml0aGdqenZ3d3J4bWRyeHp5bm9pIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAzNzAyNDksImV4cCI6MjA4NTk0NjI0OX0.G2GEm1_yKSOxq2B8frZO7L32Sz6U3AVY5esR53pIFaY";
-
     const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
     let aktuellerUser = localStorage.getItem("host_user") || "";
     document.getElementById("meinName").value = aktuellerUser;
 
-    // ⭐ Feste Reihenfolge
-    const festeReihenfolge = [
-        "ayca",
-        "reyyan",
-        "esma",
-        "büsra",
-        "fatima",
-        "merve aylin",
-        "aise"
-    ];
+    const festeReihenfolge = ["ayca", "reyyan", "esma", "büsra", "fatima", "merve aylin", "aise"];
 
     function saveName() {
-        const nameInput = document.getElementById("meinName").value.trim();
-        if (nameInput === "") return alert("Bitte gib einen Namen ein!");
-
+        const nameInput = document.getElementById("meinName").value.trim().toLowerCase();
+        if (nameInput === "") return alert("Bitte Name eingeben!");
         aktuellerUser = nameInput;
         localStorage.setItem("host_user", aktuellerUser);
-        alert("Name gespeichert!");
         render();
     }
 
@@ -196,84 +79,83 @@
         render();
     }
 
-    async function tausche(id) {
-        if (!aktuellerUser) return alert("Bitte gib deinen Namen ein!");
+    async function hostErledigt(id, aktuellerCount) {
+        // Zähler erhöhen und Tausch-Infos zurücksetzen
+        await client.from("termine").update({ 
+            status: "confirmed", 
+            tausch_partner: null,
+            hosting_count: (aktuellerCount || 0) + 1 
+        }).eq("id", id);
+        alert("Punkte aktualisiert! Gut gemacht.");
+        render();
+    }
 
+    async function tausche(hilfeId) {
+        if (!aktuellerUser) return alert("Trage erst deinen Namen oben ein!");
         const { data: termine } = await client.from("termine").select("*");
+        
+        const hilfeTermin = termine.find(t => t.id === hilfeId);
+        const meinTermin = termine.find(t => t.host.toLowerCase() === aktuellerUser && t.status === "confirmed");
 
-        const hilfeTermin = termine.find(t => t.id === id);
-        const meinTermin = termine.find(
-            t => t.host.toLowerCase() === aktuellerUser.toLowerCase() && t.status === "confirmed"
-        );
+        if (!meinTermin) return alert("Du hast keinen freien Termin zum Tauschen!");
 
-        if (!meinTermin) return alert("Du hast keinen bestätigten Termin!");
+        // 1. Tauschpartner in den Hilfe-Termin schreiben
+        await client.from("termine").update({
+            host: aktuellerUser,
+            tausch_partner: hilfeTermin.host, // Merken, wer ursprünglich dran war
+            status: "confirmed"
+        }).eq("id", hilfeTermin.id);
 
-        await client.from("termine")
-            .update({
-                host: aktuellerUser,
-                status: "confirmed",
-                hosting_count: (hilfeTermin.hosting_count || 0) + 1
-            })
-            .eq("id", hilfeTermin.id);
+        // 2. Den ursprünglichen Hoster in MEINEN alten Termin schieben
+        await client.from("termine").update({
+            host: hilfeTermin.host,
+            tausch_partner: aktuellerUser,
+            status: "confirmed"
+        }).eq("id", meinTermin.id);
 
-        await client.from("termine")
-            .update({
-                host: hilfeTermin.host,
-                status: "confirmed"
-            })
-            .eq("id", meinTermin.id);
-
-        alert("Tausch erfolgreich!");
+        alert("Tausch abgeschlossen!");
         render();
     }
 
     async function render() {
-        const { data: termine, error } = await client
-            .from("termine")
-            .select("*");
+        const { data: termine, error } = await client.from("termine").select("*");
+        if (error) return;
 
-        const liste = document.getElementById("liste");
+        // Sortieren
+        termine.sort((a, b) => festeReihenfolge.indexOf(a.host.toLowerCase()) - festeReihenfolge.indexOf(b.host.toLowerCase()));
 
-        if (error) {
-            liste.innerHTML = `<div class="empty-state" style="color:red">Fehler: ${error.message}</div>`;
-            return;
-        }
-
-        // ⭐ Sortieren nach fester Reihenfolge
-        termine.sort((a, b) => {
-            const indexA = festeReihenfolge.indexOf(a.host.toLowerCase());
-            const indexB = festeReihenfolge.indexOf(b.host.toLowerCase());
-            return indexA - indexB;
-        });
-
+        // Stats berechnen
         const stats = {};
-        termine.forEach(t => {
-            stats[t.host] = (stats[t.host] || 0) + (t.hosting_count || 0);
-        });
+        festeReihenfolge.forEach(name => stats[name] = 0);
+        termine.forEach(t => { if(stats[t.host.toLowerCase()] !== undefined) stats[t.host.toLowerCase()] += (t.hosting_count || 0); });
 
         document.getElementById("stats").innerHTML = Object.entries(stats)
-            .map(([name, count]) =>
-                `<div class="stat-box"><span>${name}</span><b>${count}x</b></div>`
-            )
-            .join("");
+            .map(([n, c]) => `<div class="stat-box"><span>${n}</span><b>${c}x</b></div>`).join("");
 
+        const liste = document.getElementById("liste");
         liste.innerHTML = "";
 
         termine.forEach(t => {
-            const istMein = t.host.toLowerCase() === aktuellerUser.toLowerCase();
+            const hostClean = t.host.toLowerCase();
+            const istMein = hostClean === aktuellerUser;
             const brauchtHilfe = t.status === "hilfe";
+            
+            let hostAnzeige = `Host: ${t.host}`;
+            if (t.tausch_partner) {
+                hostAnzeige = `Host: ${t.host} <br><small>(getauscht mit ${t.tausch_partner})</small>`;
+            }
 
             liste.innerHTML += `
                 <div class="event-card ${brauchtHilfe ? "is-help" : ""}">
                     <div class="date-info">
                         <span class="day">${t.datum_formatiert}</span>
-                        <span class="host-name ${istMein ? "me" : ""}">
-                            ${brauchtHilfe ? "⚠️ allah rizasi icin yardim!!!" : "Hoster: " + t.host}
-                            ${istMein ? " (Du)" : ""}
-                        </span>
+                        <div class="host-info ${istMein ? "me" : ""}">
+                            ${brauchtHilfe ? "⚠️ Hilfe gesucht!" : hostAnzeige}
+                        </div>
                     </div>
                     <div>
                         ${istMein && !brauchtHilfe ? `<button class="btn-cancel" onclick="markiereHilfe(${t.id})">Abgeben</button>` : ""}
+                        ${istMein && !brauchtHilfe ? `<button class="btn-done" onclick="hostErledigt(${t.id}, ${t.hosting_count})">✅ Erledigt</button>` : ""}
                         ${brauchtHilfe && !istMein ? `<button class="btn-take" onclick="tausche(${t.id})">Einspringen</button>` : ""}
                     </div>
                 </div>
@@ -281,12 +163,8 @@
         });
     }
 
-    client.channel("termine_changes")
-        .on("postgres_changes", { event: "*", schema: "public", table: "termine" }, render)
-        .subscribe();
-
+    client.channel("any").on("postgres_changes", { event: "*", schema: "public", table: "termine" }, render).subscribe();
     render();
 </script>
-
 </body>
 </html>
