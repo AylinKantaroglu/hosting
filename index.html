@@ -116,22 +116,27 @@
 
     async function tausche(hilfeId) {
         if (!aktuellerUser) return alert("Trage erst deinen Namen oben ein!");
+        
+        // 1. Alle Termine laden, um deinen eigenen zu finden
         const { data: termine } = await client.from("termine").select("*");
         
         const hilfeTermin = termine.find(t => t.id === hilfeId);
-        const meinTermin = termine.find(t => t.host.toLowerCase().trim() === aktuellerUser.toLowerCase().trim() && t.status === "confirmed");
+        const meinTermin = termine.find(t => 
+            t.host.toLowerCase().trim() === aktuellerUser.toLowerCase().trim() && 
+            t.status === "confirmed"
+        );
 
-        if (!meinTermin) return alert("Tausch nicht möglich!");
+        if (!meinTermin) return alert("Tausch nicht möglich! Du hast keinen eigenen festen Termin.");
 
-        // WICHTIG: Wir überschreiben jetzt die 'host' Spalte, damit das Banner es merkt!
-        // 1. Der Hilfe-Suchende bekommt deinen Namen als Host
+        // 2. Namen in der Datenbank wirklich tauschen
+        // Dein Name wird in die Zeile geschrieben, wo Hilfe gesucht wurde
         await client.from("termine").update({ 
             host: aktuellerUser, 
             tausch_partner: hilfeTermin.host, 
             status: "confirmed" 
         }).eq("id", hilfeId);
 
-        // 2. Du gibst dem anderen deinen ursprünglichen Platz
+        // Der Name der anderen Person wird in DEINE ursprüngliche Zeile geschrieben
         await client.from("termine").update({ 
             host: hilfeTermin.host, 
             tausch_partner: aktuellerUser, 
@@ -140,7 +145,6 @@
 
         render();
     }
-
     async function render() {
         const { data: termine, error } = await client.from("termine").select("*");
         if (error) return;
@@ -148,34 +152,22 @@
         // Sortierung nach Liste
         termine.sort((a, b) => festeReihenfolge.indexOf(a.host.toLowerCase()) - festeReihenfolge.indexOf(b.host.toLowerCase()));
 
-        // --- Banner Logik ---
-        // --- Banner Logik ---
+        // --- Banner Logik (Fix) ---
         const heute = new Date();
         heute.setHours(0, 0, 0, 0); 
 
-        // 1. Wir berechnen für jeden Termin das reale Datum
-        // 2. Wir suchen den Termin, der heute oder als nächstes ansteht
-        let aktuell = null;
-        let aktuellDatumText = "";
+        // Wir sortieren die Termine NUR für das Banner nach dem echten Datum (ID)
+        const termineNachDatum = [...termine].sort((a, b) => a.id - b.id);
 
-        for (let i = 0; i < termine.length; i++) {
+        let aktuell = termineNachDatum.find((t, index) => {
             let tDatum = new Date(startDatum);
-            tDatum.setDate(startDatum.getDate() + (i * 7));
-            
-            if (tDatum >= heute) {
-                aktuell = termine[i];
-                aktuellDatumText = holeDatumText(i);
-                break; // Wir haben den nächsten anstehenden Termin gefunden
-            }
-        }
+            tDatum.setDate(startDatum.getDate() + (index * 7));
+            return tDatum >= heute;
+        }) || termineNachDatum[0]; 
 
-        // Falls alle Termine in der Vergangenheit liegen, nimm den letzten
-        if (!aktuell) {
-            aktuell = termine[termine.length - 1];
-            aktuellDatumText = holeDatumText(termine.length - 1);
-        }
+        const aktuellIndex = termineNachDatum.indexOf(aktuell);
+        const aktuellDatumText = holeDatumText(aktuellIndex);
 
-        // Zeige den Namen an, der JETZT in der Spalte 'host' steht
         document.getElementById("welcome-area").innerHTML = `
             <div class="welcome-banner">
                 <h2>Nächster Host (${aktuellDatumText})</h2>
