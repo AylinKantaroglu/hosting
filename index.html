@@ -17,10 +17,10 @@
         }
         body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var(--text-main); margin: 0; display: flex; justify-content: center; padding: 20px 15px; }
         .app-container { width: 100%; max-width: 480px; }
-        h1 { font-size: 1.5rem; font-weight: 800; color: var(--primary); text-align: center; }
+        h1 { font-size: 1.5rem; font-weight: 800; color: var(--primary); margin-bottom: 20px; text-align: center; }
         .user-card { background: var(--card); padding: 20px; border-radius: 20px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); margin-bottom: 25px; }
         .input-group { display: flex; gap: 10px; margin-bottom: 15px; }
-        .user-card input { flex-grow: 1; padding: 12px; border: 2px solid #e2e8f0; border-radius: 12px; outline: none; }
+        .user-card input { flex-grow: 1; padding: 12px; border: 2px solid #e2e8f0; border-radius: 12px; font-size: 1rem; outline: none; }
         .stats-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
         .stat-box { background: #f1f5f9; padding: 10px; border-radius: 12px; text-align: center; }
         .stat-box span { display: block; font-size: 0.75rem; color: var(--text-sub); text-transform: uppercase; }
@@ -30,14 +30,13 @@
         .event-card.is-help { border: 2px solid var(--danger); background: #fffafa; animation: pulse 2s infinite; }
         @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); } 70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); } 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); } }
         .date-info .day { font-weight: 700; font-size: 1rem; }
-        .host-info { font-size: 0.85rem; color: var(--text-sub); }
+        .host-info { font-size: 0.9rem; color: var(--text-sub); }
         .me { color: var(--primary); font-weight: 600; }
-        button { border: none; padding: 8px 12px; border-radius: 10px; font-weight: 600; font-size: 0.75rem; cursor: pointer; margin-left: 5px; }
+        button { border: none; padding: 10px 16px; border-radius: 10px; font-weight: 600; font-size: 0.85rem; cursor: pointer; }
         .btn-save { background: var(--primary); color: white; }
         .btn-cancel { background: #fee2e2; color: var(--danger); }
         .btn-take { background: var(--success); color: white; }
-        .btn-done { background: #dcfce7; color: #166534; border: 1px solid var(--success); }
-        .empty-state { text-align: center; color: var(--text-sub); margin-top: 40px; padding: 20px; background: white; border-radius: 15px; }
+        .btn-done { background: #dcfce7; color: #166534; border: 1px solid var(--success); margin-left: 5px; }
     </style>
 </head>
 <body>
@@ -52,7 +51,7 @@
         <div id="stats" class="stats-grid"></div>
     </div>
     <div id="liste" class="timeline">
-        <div class="empty-state">Lade Daten...</div>
+        <div class="empty-state">Verbinde zur Datenbank...</div>
     </div>
 </div>
 
@@ -80,40 +79,40 @@
     }
 
     async function hostErledigt(id, aktuellerCount) {
-        // Zähler erhöhen und Tausch-Infos zurücksetzen
         await client.from("termine").update({ 
             status: "confirmed", 
             tausch_partner: null,
             hosting_count: (aktuellerCount || 0) + 1 
         }).eq("id", id);
-        alert("Punkte aktualisiert! Gut gemacht.");
         render();
     }
 
     async function tausche(hilfeId) {
-        if (!aktuellerUser) return alert("Trage erst deinen Namen oben ein!");
-        const { data: termine } = await client.from("termine").select("*");
+        if (!aktuellerUser) return alert("Gib erst deinen Namen oben ein!");
         
+        const { data: termine } = await client.from("termine").select("*");
         const hilfeTermin = termine.find(t => t.id === hilfeId);
+        
+        // Findet deinen Termin, egal ob Ayca oder ayca
         const meinTermin = termine.find(t => t.host.toLowerCase() === aktuellerUser && t.status === "confirmed");
 
         if (!meinTermin) return alert("Du hast keinen freien Termin zum Tauschen!");
 
-        // 1. Tauschpartner in den Hilfe-Termin schreiben
+        // 1. Hilfe-Termin aktualisieren (Du übernimmst)
         await client.from("termine").update({
             host: aktuellerUser,
-            tausch_partner: hilfeTermin.host, // Merken, wer ursprünglich dran war
+            tausch_partner: hilfeTermin.host, 
             status: "confirmed"
         }).eq("id", hilfeTermin.id);
 
-        // 2. Den ursprünglichen Hoster in MEINEN alten Termin schieben
+        // 2. Deinen alten Termin dem anderen geben
         await client.from("termine").update({
             host: hilfeTermin.host,
             tausch_partner: aktuellerUser,
             status: "confirmed"
         }).eq("id", meinTermin.id);
 
-        alert("Tausch abgeschlossen!");
+        alert("Tausch erfolgreich!");
         render();
     }
 
@@ -121,12 +120,10 @@
         const { data: termine, error } = await client.from("termine").select("*");
         if (error) return;
 
-        // Sortieren
         termine.sort((a, b) => festeReihenfolge.indexOf(a.host.toLowerCase()) - festeReihenfolge.indexOf(b.host.toLowerCase()));
 
-        // Stats berechnen
         const stats = {};
-        festeReihenfolge.forEach(name => stats[name] = 0);
+        festeReihenfolge.forEach(n => stats[n] = 0);
         termine.forEach(t => { if(stats[t.host.toLowerCase()] !== undefined) stats[t.host.toLowerCase()] += (t.hosting_count || 0); });
 
         document.getElementById("stats").innerHTML = Object.entries(stats)
@@ -137,12 +134,12 @@
 
         termine.forEach(t => {
             const hostClean = t.host.toLowerCase();
-            const istMein = hostClean === aktuellerUser;
+            const istMein = hostClean === aktuellerUser.toLowerCase();
             const brauchtHilfe = t.status === "hilfe";
             
-            let hostAnzeige = `Host: ${t.host}`;
+            let hostAnzeige = `Hoster: ${t.host}`;
             if (t.tausch_partner) {
-                hostAnzeige = `Host: ${t.host} <br><small>(getauscht mit ${t.tausch_partner})</small>`;
+                hostAnzeige = `Hoster: ${t.host} <br><small>(getauscht mit ${t.tausch_partner})</small>`;
             }
 
             liste.innerHTML += `
@@ -151,11 +148,12 @@
                         <span class="day">${t.datum_formatiert}</span>
                         <div class="host-info ${istMein ? "me" : ""}">
                             ${brauchtHilfe ? "⚠️ Hilfe gesucht!" : hostAnzeige}
+                            ${istMein ? " (Du)" : ""}
                         </div>
                     </div>
-                    <div>
+                    <div style="display:flex; align-items:center;">
                         ${istMein && !brauchtHilfe ? `<button class="btn-cancel" onclick="markiereHilfe(${t.id})">Abgeben</button>` : ""}
-                        ${istMein && !brauchtHilfe ? `<button class="btn-done" onclick="hostErledigt(${t.id}, ${t.hosting_count})">✅ Erledigt</button>` : ""}
+                        ${istMein && !brauchtHilfe ? `<button class="btn-done" onclick="hostErledigt(${t.id}, ${t.hosting_count})">Erledigt ✅</button>` : ""}
                         ${brauchtHilfe && !istMein ? `<button class="btn-take" onclick="tausche(${t.id})">Einspringen</button>` : ""}
                     </div>
                 </div>
