@@ -161,7 +161,6 @@
     let aktuellerUser = localStorage.getItem("host_user") || "";
     document.getElementById("meinName").value = aktuellerUser;
 
-    // ⭐ Feste Reihenfolge
     const festeReihenfolge = [
         "ayca",
         "reyyan",
@@ -178,7 +177,6 @@
 
         aktuellerUser = nameInput;
         localStorage.setItem("host_user", aktuellerUser);
-        alert("Name gespeichert!");
         render();
     }
 
@@ -187,7 +185,6 @@
         render();
     }
 
-    // ⭐ Vereinfachter Tausch mit Name-Eingabe
     async function tausche(id) {
         const einspringer = prompt("Wer springt ein? Bitte Name eingeben:");
 
@@ -206,11 +203,10 @@
         );
 
         if (!einspringerTermin) {
-            alert("Diese Person hat keinen bestätigten Termin zum Tauschen!");
+            alert("Diese Person hat keinen bestätigten Termin!");
             return;
         }
 
-        // 1. Einspringer übernimmt den Hilfe-Termin
         await client.from("termine")
             .update({
                 host: einspringer,
@@ -220,7 +216,6 @@
             })
             .eq("id", hilfeTermin.id);
 
-        // 2. Hilfe-Person übernimmt den Termin des Einspringers
         await client.from("termine")
             .update({
                 host: hilfeTermin.host,
@@ -229,10 +224,8 @@
             })
             .eq("id", einspringerTermin.id);
 
-        alert("Tausch erfolgreich!");
         render();
     }
-
     async function render() {
         const { data: termine, error } = await client
             .from("termine")
@@ -245,14 +238,12 @@
             return;
         }
 
-        // ⭐ Sortieren nach fester Reihenfolge
         termine.sort((a, b) => {
             const indexA = festeReihenfolge.indexOf(a.host.toLowerCase());
             const indexB = festeReihenfolge.indexOf(b.host.toLowerCase());
             return indexA - indexB;
         });
 
-        // ⭐ Statistik berechnen
         const stats = {};
         termine.forEach(t => {
             stats[t.host] = (stats[t.host] || 0) + (t.hosting_count || 0);
