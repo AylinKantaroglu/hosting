@@ -70,6 +70,7 @@
         if (nameInput === "") return alert("Bitte Name eingeben!");
         aktuellerUser = nameInput;
         localStorage.setItem("host_user", aktuellerUser);
+        alert("Nutzer gespeichert: " + aktuellerUser);
         render();
     }
 
@@ -79,31 +80,53 @@
     }
 
     async function hostErledigt(id, aktuellerCount) {
-        // Erhöht den Zähler und setzt Tausch-Info zurück
         await client.from("termine").update({ 
             status: "confirmed", 
             tausch_partner: null,
             hosting_count: (aktuellerCount || 0) + 1 
         }).eq("id", id);
+        alert("Punkte aktualisiert!");
         render();
     }
 
     async function tausche(hilfeId) {
         if (!aktuellerUser) return alert("Trage erst deinen Namen oben ein!");
         
-        const { data: termine } = await client.from("termine").select("*");
+        const { data: termine, error: loadError } = await client.from("termine").select("*");
+        if (loadError) return alert("Fehler beim Laden: " + loadError.message);
+
         const hilfeTermin = termine.find(t => t.id === hilfeId);
         
-        // Suche DEINEN nächsten regulären Termin
-        const meinTermin = termine.find(t => t.host.toLowerCase() === aktuellerUser && t.status === "confirmed");
+        // Findet DEINEN nächsten Termin (Egal ob du es groß oder klein schreibst)
+        const meinTermin = termine.find(t => 
+            t.host.toLowerCase().trim() === aktuellerUser.toLowerCase().trim() && 
+            t.status === "confirmed"
+        );
 
-        if (!meinTermin) return alert("Du hast keinen freien Termin zum Tauschen!");
+        if (!meinTermin) {
+            alert("Tausch nicht möglich! Du hast keinen eigenen Termin mit Status 'confirmed', den du zum Tausch anbieten kannst.");
+            return;
+        }
 
-        // Tausch in der DB: Du nimmst den Hilfe-Termin, der andere deinen
-        await client.from("termine").update({ host: aktuellerUser, tausch_partner: hilfeTermin.host, status: "confirmed" }).eq("id", hilfeTermin.id);
-        await client.from("termine").update({ host: hilfeTermin.host, tausch_partner: aktuellerUser, status: "confirmed" }).eq("id", meinTermin.id);
+        // 1. Hilfe-Termin auf dich umschreiben
+        const { error: err1 } = await client.from("termine").update({
+            host: aktuellerUser,
+            tausch_partner: hilfeTermin.host, 
+            status: "confirmed"
+        }).eq("id", hilfeTermin.id);
 
-        alert("Tausch erfolgreich!");
+        // 2. Deinen alten Platz dem anderen geben
+        const { error: err2 } = await client.from("termine").update({
+            host: hilfeTermin.host,
+            tausch_partner: aktuellerUser,
+            status: "confirmed"
+        }).eq("id", meinTermin.id);
+
+        if (err1 || err2) {
+            alert("Fehler beim Tausch in der Datenbank!");
+        } else {
+            alert("Erfolgreich getauscht mit " + hilfeTermin.host);
+        }
         render();
     }
 
@@ -117,7 +140,10 @@
         // Statistik
         const stats = {};
         festeReihenfolge.forEach(n => stats[n] = 0);
-        termine.forEach(t => { if(stats[t.host.toLowerCase()] !== undefined) stats[t.host.toLowerCase()] += (t.hosting_count || 0); });
+        termine.forEach(t => { 
+            const h = t.host.toLowerCase().trim();
+            if(stats[h] !== undefined) stats[h] += (t.hosting_count || 0); 
+        });
 
         document.getElementById("stats").innerHTML = Object.entries(stats)
             .map(([n, c]) => `<div class="stat-box"><span>${n}</span><b>${c}x</b></div>`).join("");
@@ -126,13 +152,13 @@
         liste.innerHTML = "";
 
         termine.forEach(t => {
-            const hostClean = t.host.toLowerCase();
-            const istMein = hostClean === aktuellerUser.toLowerCase();
+            const hostClean = t.host.toLowerCase().trim();
+            const istMein = hostClean === aktuellerUser.toLowerCase().trim();
             const brauchtHilfe = t.status === "hilfe";
             
-            let hostAnzeige = `Hoster: ${t.host}`;
+            let hostAnzeige = `Host: ${t.host}`;
             if (t.tausch_partner) {
-                hostAnzeige = `Hoster: ${t.host} <br><small>(getauscht mit ${t.tausch_partner})</small>`;
+                hostAnzeige = `Host: ${t.host} <br><small style="color:var(--primary)">(Tausch mit ${t.tausch_partner})</small>`;
             }
 
             liste.innerHTML += `
@@ -153,7 +179,7 @@
         });
     }
 
-    client.channel("any").on("postgres_changes", { event: "*", schema: "public", table: "termine" }, render).subscribe();
+    client.channel("termine_changes").on("postgres_changes", { event: "*", schema: "public", table: "termine" }, render).subscribe();
     render();
 </script>
 </body>
