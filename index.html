@@ -106,16 +106,21 @@
 
     async function hostErledigt(id) {
         // Termin laden
-        const { data: termine } = await client.from("termine").select("*").eq("id", id).single();
+        const { data: termin } = await client
+            .from("termine")
+            .select("*")
+            .eq("id", id)
+            .single();
 
-        const neuerCount = (termine.hosting_count || 0) + 1;
+        // Punkt für den aktuellen Host
+        const neuerCount = (termin.hosting_count || 0) + 1;
 
         await client.from("termine").update({
             hosting_count: neuerCount,
             status: "confirmed"
         }).eq("id", id);
 
-        alert("Punkt wurde für " + termine.host + " gezählt!");
+        alert("Punkt wurde für " + termin.host + " gezählt!");
         render();
     }
 
