@@ -133,6 +133,18 @@
         // Sortierung nach Liste
         termine.sort((a, b) => festeReihenfolge.indexOf(a.host.toLowerCase()) - festeReihenfolge.indexOf(b.host.toLowerCase()));
 
+        // --- Banner Logik ---
+        // Wir nehmen den ersten Termin der Liste als "Aktuell"
+        const aktuell = termine[0];
+        const aktuellDatum = holeDatumText(0);
+        document.getElementById("welcome-area").innerHTML = `
+            <div class="welcome-banner">
+                <h2>Nächster Host (${aktuellDatum})</h2>
+                <span class="host-now">${aktuell.host.toUpperCase()}</span>
+                <p>Ihr seid herzlich willkommen brudis!</p>
+            </div>
+        `;
+
         // Statistik
         const stats = {};
         festeReihenfolge.forEach(n => stats[n] = 0);
