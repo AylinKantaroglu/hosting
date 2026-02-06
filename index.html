@@ -147,7 +147,36 @@
         const { data: termine, error } = await client.from("termine").select("*");
         if (error) return;
 
-        const heute = new Date(); heute.setHours(0, 0, 0, 0); 
+        // --- NEU: AUTOMATISCHER RESET FÜR VERGANGENE WOCHEN ---
+        const heute = new Date();
+        heute.setHours(0, 0, 0, 0);
+
+        // Wir gehen alle Termine durch und prüfen das Datum
+        for (let i = 0; i < termine.length; i++) {
+            let t = termine[i];
+            
+            // Wir berechnen das Datum für diesen Listenplatz (ID)
+            let tDatum = new Date(startDatum);
+            tDatum.setDate(startDatum.getDate() + (i * 7));
+            tDatum.setHours(23, 59, 59); // Wir geben dem Host den ganzen Donnerstag Zeit
+
+            // Wenn der Tag vorbei ist UND der Name nicht dem Original entspricht oder ein Tausch drinsteht
+            if (tDatum < heute) {
+                const originalHost = festeReihenfolge[i];
+                
+                if (t.host.toLowerCase() !== originalHost || t.tausch_partner !== null || t.status === "hilfe") {
+                    // Zurücksetzen in der Datenbank
+                    await client.from("termine").update({
+                        host: originalHost,
+                        tausch_partner: null,
+                        status: "confirmed"
+                    }).eq("id", t.id);
+                }
+            }
+        }
+        // -------------------------------------------------------
+
+        // Ab hier folgt dein normaler Code für das Banner
         const termineNachDatum = [...termine].sort((a, b) => a.id - b.id);
         let aktuell = termineNachDatum.find((t, index) => {
             let tDatum = new Date(startDatum);
@@ -164,6 +193,8 @@
                 <span class="host-now">${aktuell.host.toUpperCase()}</span>
                 <p>Ihr seid herzlich willkommen brudis!</p>
             </div>`;
+
+        // ... (hier geht es weiter mit Statistik und Liste wie gewohnt)
 
         const stats = {};
         festeReihenfolge.forEach(n => stats[n] = 0);
