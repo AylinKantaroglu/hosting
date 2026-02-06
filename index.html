@@ -88,9 +88,11 @@
         if (nameInput === "") return alert("Bitte Name eingeben!");
         aktuellerUser = nameInput;
         localStorage.setItem("host_user", aktuellerUser);
+        //alert("Nutzer gespeichert: " + aktuellerUser);
         render();
     }
 
+    //  Automatische Berechnung: Erster Name = Startdatum, dann immer +7 Tage
     function holeDatumText(index) {
         let d = new Date(startDatum);
         d.setDate(startDatum.getDate() + (index * 7));
@@ -114,7 +116,10 @@
 
     async function tausche(hilfeId) {
         if (!aktuellerUser) return alert("Trage erst deinen Namen oben ein!");
+        
+        // 1. Alle Termine laden, um deinen eigenen zu finden
         const { data: termine } = await client.from("termine").select("*");
+        
         const hilfeTermin = termine.find(t => t.id === hilfeId);
         const meinTermin = termine.find(t => 
             t.host.toLowerCase().trim() === aktuellerUser.toLowerCase().trim() && 
@@ -123,12 +128,15 @@
 
         if (!meinTermin) return alert("Tausch nicht möglich! Du hast keinen eigenen festen Termin.");
 
+        // 2. Namen in der Datenbank wirklich tauschen
+        // Dein Name wird in die Zeile geschrieben, wo Hilfe gesucht wurde
         await client.from("termine").update({ 
             host: aktuellerUser, 
             tausch_partner: hilfeTermin.host, 
             status: "confirmed" 
         }).eq("id", hilfeId);
 
+        // Der Name der anderen Person wird in DEINE ursprüngliche Zeile geschrieben
         await client.from("termine").update({ 
             host: hilfeTermin.host, 
             tausch_partner: aktuellerUser, 
@@ -137,7 +145,6 @@
 
         render();
     }
-
     async function render() {
         const { data: termine, error } = await client.from("termine").select("*");
         if (error) return;
@@ -145,16 +152,18 @@
         // Sortierung nach Liste
         termine.sort((a, b) => festeReihenfolge.indexOf(a.host.toLowerCase()) - festeReihenfolge.indexOf(b.host.toLowerCase()));
 
-        // Banner Logik
+        // --- Banner Logik (Fix) ---
         const heute = new Date();
         heute.setHours(0, 0, 0, 0); 
 
+        // Wir sortieren die Termine NUR für das Banner nach dem echten Datum (ID)
         const termineNachDatum = [...termine].sort((a, b) => a.id - b.id);
+
         let aktuell = termineNachDatum.find((t, index) => {
             let tDatum = new Date(startDatum);
             tDatum.setDate(startDatum.getDate() + (index * 7));
             return tDatum >= heute;
-        }) || termineNachDatum[0];
+        }) || termineNachDatum[0]; 
 
         const aktuellIndex = termineNachDatum.indexOf(aktuell);
         const aktuellDatumText = holeDatumText(aktuellIndex);
@@ -187,11 +196,9 @@
             const brauchtHilfe = t.status === "hilfe";
             const datumAnzeige = holeDatumText(index);
             
-            let hostAnzeigeHTML = ""; 
+            let hostLabel = `Host: ${t.host}`;
             if (t.tausch_partner) {
-                hostAnzeigeHTML = `<b>Host: ${t.host}</b> <br><small style="color:var(--primary)">(Tausch mit ${t.tausch_partner})</small>`;
-            } else {
-                hostAnzeigeHTML = `<b>Host: ${t.host}</b>`;
+                hostLabel = `Host: ${t.host} <br><small style="color:var(--primary)">(Tausch mit ${t.tausch_partner})</small>`;
             }
 
             liste.innerHTML += `
@@ -199,18 +206,18 @@
                     <div class="date-info">
                         <span class="day">${datumAnzeige} (19:00 Uhr)</span>
                         <div class="host-info ${istMein ? "me" : ""}">
-                            ${brauchtHilfe ? "⚠️ kann nicht hosten!" : hostAnzeigeHTML}
+                            ${brauchtHilfe ? "⚠️ kann nicht hosten!" : hostLabel}
                             ${istMein ? " (Du)" : ""}
                         </div>
                     </div>
                     <div style="display:flex; gap:5px;">
                         ${istMein && !brauchtHilfe ? `<button class="btn-cancel" onclick="markiereHilfe(${t.id})">will abgeben</button>` : ""}
-                        ${istMein && !brauchtHilfe ? `<button class="btn-done" style="background:#dcfce7; color:#166534;" onclick="hostErledigt(${t.id}, ${t.hosting_count})">kann hosten ✅</button>` : ""}
-                        ${brauchtHilfe && !istMein ? `<button class="btn-take" style="background:#22c55e; color:white;" onclick="tausche(${t.id})">kann übernehmen</button>` : ""}
+                        ${istMein && !brauchtHilfe ? `<button class="btn-done" onclick="hostErledigt(${t.id}, ${t.hosting_count})">kann hosten ✅</button>` : ""}
+                        ${brauchtHilfe && !istMein ? `<button class="btn-take" onclick="tausche(${t.id})">kann übernehmen</button>` : ""}
                     </div>
                 </div>`;
         });
-    } // Diese Klammer hat gefehlt
+    }
 
     client.channel("any").on("postgres_changes", { event: "*", schema: "public", table: "termine" }, render).subscribe();
     render();
