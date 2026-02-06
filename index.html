@@ -209,18 +209,22 @@
 
         if (!meinTermin) return alert("Du hast keinen bestätigten Termin!");
 
+        // 1. Du springst ein
         await client.from("termine")
             .update({
                 host: aktuellerUser,
                 status: "confirmed",
-                hosting_count: (hilfeTermin.hosting_count || 0) + 1
+                hosting_count: (hilfeTermin.hosting_count || 0) + 1,
+                tausch_partner: hilfeTermin.host
             })
             .eq("id", hilfeTermin.id);
 
+        // 2. Der andere bekommt deinen Termin
         await client.from("termine")
             .update({
                 host: hilfeTermin.host,
-                status: "confirmed"
+                status: "confirmed",
+                tausch_partner: aktuellerUser
             })
             .eq("id", meinTermin.id);
 
@@ -270,7 +274,10 @@
                     <div class="date-info">
                         <span class="day">${t.datum_formatiert}</span>
                         <span class="host-name ${istMein ? "me" : ""}">
-                            ${brauchtHilfe ? "⚠️ allah rizasi icin yardim!!!" : "Hoster: " + t.host}
+                            ${brauchtHilfe 
+                                ? "⚠️ allah rizasi icin yardim!!!" 
+                                : `Hoster: ${t.host}${t.tausch_partner ? " (getauscht mit " + t.tausch_partner + ")" : ""}`
+                            }
                             ${istMein ? " (Du)" : ""}
                         </span>
                     </div>
