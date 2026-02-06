@@ -170,6 +170,17 @@
     let aktuellerUser = localStorage.getItem("host_user") || "";
     document.getElementById("meinName").value = aktuellerUser;
 
+    // ⭐ Feste Reihenfolge
+    const festeReihenfolge = [
+        "ayca",
+        "reyyan",
+        "esma",
+        "büsra",
+        "fatima",
+        "merve aylin",
+        "aise"
+    ];
+
     function saveName() {
         const nameInput = document.getElementById("meinName").value.trim();
         if (nameInput === "") return alert("Bitte gib einen Namen ein!");
@@ -219,8 +230,7 @@
     async function render() {
         const { data: termine, error } = await client
             .from("termine")
-            .select("*")
-            .order("datum_raw", { ascending: true });
+            .select("*");
 
         const liste = document.getElementById("liste");
 
@@ -228,6 +238,13 @@
             liste.innerHTML = `<div class="empty-state" style="color:red">Fehler: ${error.message}</div>`;
             return;
         }
+
+        // ⭐ Sortieren nach fester Reihenfolge
+        termine.sort((a, b) => {
+            const indexA = festeReihenfolge.indexOf(a.host.toLowerCase());
+            const indexB = festeReihenfolge.indexOf(b.host.toLowerCase());
+            return indexA - indexB;
+        });
 
         const stats = {};
         termine.forEach(t => {
@@ -251,7 +268,7 @@
                     <div class="date-info">
                         <span class="day">${t.datum_formatiert}</span>
                         <span class="host-name ${istMein ? "me" : ""}">
-                            ${brauchtHilfe ? "⚠️ allah i" : "Hoster: " + t.host}
+                            ${brauchtHilfe ? "⚠️ allah rizasi icin yardim!!!" : "Hoster: " + t.host}
                             ${istMein ? " (Du)" : ""}
                         </span>
                     </div>
