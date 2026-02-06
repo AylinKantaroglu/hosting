@@ -152,22 +152,21 @@
         // Sortierung nach Liste
         termine.sort((a, b) => festeReihenfolge.indexOf(a.host.toLowerCase()) - festeReihenfolge.indexOf(b.host.toLowerCase()));
 
-        // --- Banner Logik (Fix) ---
+        // --- Banner Logik (nimmt immer den aktuellen Host) ---
         const heute = new Date();
         heute.setHours(0, 0, 0, 0); 
 
-        // Wir sortieren die Termine NUR für das Banner nach dem echten Datum (ID)
         const termineNachDatum = [...termine].sort((a, b) => a.id - b.id);
-
         let aktuell = termineNachDatum.find((t, index) => {
             let tDatum = new Date(startDatum);
             tDatum.setDate(startDatum.getDate() + (index * 7));
             return tDatum >= heute;
-        }) || termineNachDatum[0]; 
+        }) || termineNachDatum[0];
 
         const aktuellIndex = termineNachDatum.indexOf(aktuell);
         const aktuellDatumText = holeDatumText(aktuellIndex);
 
+        // Hier wird der Name groß angezeigt, der JETZT hostet
         document.getElementById("welcome-area").innerHTML = `
             <div class="welcome-banner">
                 <h2>Nächster Host (${aktuellDatumText})</h2>
