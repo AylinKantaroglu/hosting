@@ -200,9 +200,6 @@
                 // Zeigt: "Host: Esma (Tausch mit Ayca)"
                 hostAnzeige = `<b>Host: ${t.host}</b> <br><small style="color:var(--primary)">(Tausch mit ${t.tausch_partner})</small>`;
             }
-            else {
-                hostAnzeige = `<b>Host: ${t.host}</b>`;
-            }
 
             liste.innerHTML += `
                 <div class="event-card ${brauchtHilfe ? "is-help" : ""}">
