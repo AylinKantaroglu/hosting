@@ -63,6 +63,32 @@
             outline: none;
         }
 
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .stat-box {
+            background: #f1f5f9;
+            padding: 10px;
+            border-radius: 12px;
+            text-align: center;
+        }
+
+        .stat-box span {
+            display: block;
+            font-size: 0.75rem;
+            color: var(--text-sub);
+            text-transform: uppercase;
+        }
+
+        .stat-box b {
+            font-size: 1.1rem;
+            color: var(--primary);
+        }
+
         .timeline {
             display: flex;
             flex-direction: column;
@@ -117,6 +143,8 @@
             <input type="text" id="meinName" placeholder="Dein Name...">
             <button class="btn-save" onclick="saveName()">OK</button>
         </div>
+
+        <div id="stats" class="stats-grid"></div>
     </div>
 
     <div id="liste" class="timeline">
@@ -187,7 +215,8 @@
             .update({
                 host: einspringer,
                 status: "confirmed",
-                tausch_partner: hilfeTermin.host
+                tausch_partner: hilfeTermin.host,
+                hosting_count: (hilfeTermin.hosting_count || 0) + 1
             })
             .eq("id", hilfeTermin.id);
 
@@ -222,6 +251,18 @@
             const indexB = festeReihenfolge.indexOf(b.host.toLowerCase());
             return indexA - indexB;
         });
+
+        // ⭐ Statistik berechnen
+        const stats = {};
+        termine.forEach(t => {
+            stats[t.host] = (stats[t.host] || 0) + (t.hosting_count || 0);
+        });
+
+        document.getElementById("stats").innerHTML = Object.entries(stats)
+            .map(([name, count]) =>
+                `<div class="stat-box"><span>${name}</span><b>${count}x</b></div>`
+            )
+            .join("");
 
         liste.innerHTML = "";
 
