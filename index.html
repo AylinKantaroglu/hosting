@@ -115,16 +115,30 @@
     }
 
     async function tausche(hilfeId) {
-            if (!aktuellerUser) return alert("Trage erst deinen Namen oben ein!");
-            const { data: termine } = await client.from("termine").select("*");
-            const hilfeTermin = termine.find(t => t.id === hilfeId);
-            const meinTermin = termine.find(t => t.host.toLowerCase().trim() === aktuellerUser.toLowerCase().trim() && t.status === "confirmed");
+        if (!aktuellerUser) return alert("Trage erst deinen Namen oben ein!");
+        const { data: termine } = await client.from("termine").select("*");
+        
+        const hilfeTermin = termine.find(t => t.id === hilfeId);
+        const meinTermin = termine.find(t => t.host.toLowerCase().trim() === aktuellerUser.toLowerCase().trim() && t.status === "confirmed");
 
-            if (!meinTermin) return alert("Tausch nicht möglich!");
+        if (!meinTermin) return alert("Tausch nicht möglich!");
 
-            await client.from("termine").update({ host: aktuellerUser, tausch_partner: hilfeTermin.host, status: "confirmed" }).eq("id", hilfeId);
-            await client.from("termine").update({ host: hilfeTermin.host, tausch_partner: aktuellerUser, status: "confirmed" }).eq("id", meinTermin.id);
-            render();
+        // WICHTIG: Wir überschreiben jetzt die 'host' Spalte, damit das Banner es merkt!
+        // 1. Der Hilfe-Suchende bekommt deinen Namen als Host
+        await client.from("termine").update({ 
+            host: aktuellerUser, 
+            tausch_partner: hilfeTermin.host, 
+            status: "confirmed" 
+        }).eq("id", hilfeId);
+
+        // 2. Du gibst dem anderen deinen ursprünglichen Platz
+        await client.from("termine").update({ 
+            host: hilfeTermin.host, 
+            tausch_partner: aktuellerUser, 
+            status: "confirmed" 
+        }).eq("id", meinTermin.id);
+
+        render();
     }
 
     async function render() {
@@ -169,7 +183,7 @@
                 <p>Ihr seid herzlich willkommen brudis!</p>
             </div>
         `;
-        
+
         // Statistik
         const stats = {};
         festeReihenfolge.forEach(n => stats[n] = 0);
