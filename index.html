@@ -282,8 +282,16 @@
                         </span>
                     </div>
                     <div>
-                        ${istMein && !brauchtHilfe ? `<button class="btn-cancel" onclick="markiereHilfe(${t.id})">Abgeben</button>` : ""}
-                        ${brauchtHilfe && !istMein ? `<button class="btn-take" onclick="tausche(${t.id})">Einspringen</button>` : ""}
+                        ${
+                            istMein && t.status === "confirmed"
+                                ? `<button class="btn-cancel" onclick="markiereHilfe(${t.id})">Abgeben</button>`
+                                : ""
+                        }
+                        ${
+                            !istMein && t.status === "hilfe"
+                                ? `<button class="btn-take" onclick="tausche(${t.id})">Einspringen</button>`
+                                : ""
+                        }
                     </div>
                 </div>
             `;
