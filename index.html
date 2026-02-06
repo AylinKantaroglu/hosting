@@ -170,6 +170,18 @@
     let aktuellerUser = localStorage.getItem("host_user") || "";
     document.getElementById("meinName").value = aktuellerUser;
 
+    // Feste Reihenfolge
+    const festeReihenfolge = [
+        "ayca",
+        "reyyan",
+        "esma",
+        "büsra",
+        "fatima",
+        "merve aylin",
+        "aise"
+    ];
+
+
     function saveName() {
         const nameInput = document.getElementById("meinName").value.trim();
         if (nameInput === "") return alert("Bitte gib einen Namen ein!");
@@ -228,6 +240,13 @@
             liste.innerHTML = `<div class="empty-state" style="color:red">Fehler: ${error.message}</div>`;
             return;
         }
+
+        // Sortieren nach fester Reihenfolge
+        termine.sort((a, b) => {
+            const indexA = festeReihenfolge.indexOf(a.host.toLowerCase());
+            const indexB = festeReihenfolge.indexOf(b.host.toLowerCase());
+            return indexA - indexB;
+        });
 
         const stats = {};
         termine.forEach(t => {
