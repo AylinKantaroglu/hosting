@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    /// Host-Planer - Ein einfaches Tool zur Verwaltung von Hosting-Terminen
+    /// Erstellt von Aylen
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Host-Planer Pro</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <style>
+        :root {
+            --primary: #6366f1;
+            --bg: #f8fafc;
+            --card: #ffffff;
+            --text-main: #1e293b;
+            --text-sub: #64748b;
+            --danger: #ef4444;
+            --success: #22c55e;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg);
+            color: var(--text-main);
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            padding: 20px 15px;
+        }
+
+        .app-container {
+            width: 100%;
+            max-width: 480px;
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            font-weight: 800;
+            color: var(--primary);
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .user-card {
+            background: var(--card);
+            padding: 20px;
+            border-radius: 20px;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+            margin-bottom: 25px;
+        }
+
+        .input-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .user-card input {
+            flex-grow: 1;
+            padding: 12px;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            font-size: 1rem;
+            outline: none;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+        }
+
+        .stat-box {
+            background: #f1f5f9;
+            padding: 10px;
+            border-radius: 12px;
+            text-align: center;
+        }
+
+        .stat-box span {
+            display: block;
+            font-size: 0.75rem;
+            color: var(--text-sub);
+            text-transform: uppercase;
+        }
+
+        .stat-box b {
+            font-size: 1.1rem;
+            color: var(--primary);
+        }
+
+        .timeline {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .event-card {
+            background: var(--card);
+            padding: 16px;
+            border-radius: 18px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        .event-card.is-help {
+            border: 2px solid var(--danger);
+            background: #fffafa;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
+            70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+        }
+
+        .date-info .day { font-weight: 700; font-size: 1rem; }
+        .date-info .host-name { color: var(--text-sub); font-size: 0.9rem; }
+        .date-info .host-name.me { color: var(--primary); font-weight: 600; }
+
+        button {
+            border: none;
+            padding: 10px 16px;
+            border-radius: 10px;
+            font-weight: 600;
+            font-size: 0.85rem;
+            cursor: pointer;
+        }
+
+        .btn-save { background: var(--primary); color: white; }
+        .btn-cancel { background: #fee2e2; color: var(--danger); }
+        .btn-take { background: var(--success); color: white; }
+
+        .empty-state {
+            text-align: center;
+            color: var(--text-sub);
+            margin-top: 40px;
+            padding: 20px;
+            background: white;
+            border-radius: 15px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="app-container">
+    <h1>Host-Planer</h1>
+
+    <div class="user-card">
+        <div class="input-group">
+            <input type="text" id="meinName" placeholder="Dein Name...">
+            <button class="btn-save" onclick="saveName()">OK</button>
+        </div>
+        <div id="stats" class="stats-grid"></div>
+    </div>
+
+    <div id="liste" class="timeline">
+        <div class="empty-state">Verbinde zur Datenbank...</div>
+    </div>
+</div>
+
+<script>
+    const SUPABASE_URL = "https://ithgjzvwwrxmdrxzynoi.supabase.co";
+    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml0aGdqenZ3d3J4bWRyeHp5bm9pIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAzNzAyNDksImV4cCI6MjA4NTk0NjI0OX0.G2GEm1_yKSOxq2B8frZO7L32Sz6U3AVY5esR53pIFaY";
+
+    const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    let aktuellerUser = localStorage.getItem("host_user") || "";
+    document.getElementById("meinName").value = aktuellerUser;
+
+    function saveName() {
+        const nameInput = document.getElementById("meinName").value.trim();
+        if (nameInput === "") return alert("Bitte gib einen Namen ein!");
+
+        aktuellerUser = nameInput;
+        localStorage.setItem("host_user", aktuellerUser);
+        alert("Name gespeichert!");
+        render();
+    }
+
+    async function markiereHilfe(id) {
+        await client.from("termine").update({ status: "hilfe" }).eq("id", id);
+        render();
+    }
+
+    async function tausche(id) {
+        if (!aktuellerUser) return alert("Bitte gib deinen Namen ein!");
+
+        const { data: termine } = await client.from("termine").select("*");
+
+        const hilfeTermin = termine.find(t => t.id === id);
+        const meinTermin = termine.find(
+            t => t.host.toLowerCase() === aktuellerUser.toLowerCase() && t.status === "confirmed"
+        );
+
+        if (!meinTermin) return alert("Du hast keinen bestätigten Termin!");
+
+        await client.from("termine")
+            .update({
+                host: aktuellerUser,
+                status: "confirmed",
+                hosting_count: (hilfeTermin.hosting_count || 0) + 1
+            })
+            .eq("id", hilfeTermin.id);
+
+        await client.from("termine")
+            .update({
+                host: hilfeTermin.host,
+                status: "confirmed"
+            })
+            .eq("id", meinTermin.id);
+
+        alert("Tausch erfolgreich!");
+        render();
+    }
+
+    async function render() {
+        const { data: termine, error } = await client
+            .from("termine")
+            .select("*")
+            .order("datum_raw", { ascending: true });
+
+        const liste = document.getElementById("liste");
+
+        if (error) {
+            liste.innerHTML = `<div class="empty-state" style="color:red">Fehler: ${error.message}</div>`;
+            return;
+        }
+
+        const stats = {};
+        termine.forEach(t => {
+            stats[t.host] = (stats[t.host] || 0) + (t.hosting_count || 0);
+        });
+
+        document.getElementById("stats").innerHTML = Object.entries(stats)
+            .map(([name, count]) =>
+                `<div class="stat-box"><span>${name}</span><b>${count}x</b></div>`
+            )
+            .join("");
+
+        liste.innerHTML = "";
+
+        termine.forEach(t => {
+            const istMein = t.host.toLowerCase() === aktuellerUser.toLowerCase();
+            const brauchtHilfe = t.status === "hilfe";
+
+            liste.innerHTML += `
+                <div class="event-card ${brauchtHilfe ? "is-help" : ""}">
+                    <div class="date-info">
+                        <span class="day">${t.datum_formatiert}</span>
+                        <span class="host-name ${istMein ? "me" : ""}">
+                            ${brauchtHilfe ? "⚠️ Hilfe gesucht" : "Hoster: " + t.host}
+                            ${istMein ? " (Du)" : ""}
+                        </span>
+                    </div>
+                    <div>
+                        ${istMein && !brauchtHilfe ? `<button class="btn-cancel" onclick="markiereHilfe(${t.id})">Abgeben</button>` : ""}
+                        ${brauchtHilfe && !istMein ? `<button class="btn-take" onclick="tausche(${t.id})">Einspringen</button>` : ""}
+                    </div>
+                </div>
+            `;
+        });
+    }
+
+    client.channel("termine_changes")
+        .on("postgres_changes", { event: "*", schema: "public", table: "termine" }, render)
+        .subscribe();
+
+    render();
+</script>
+
+</body>
+</html>
