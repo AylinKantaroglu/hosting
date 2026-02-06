@@ -63,31 +63,6 @@
             outline: none;
         }
 
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 10px;
-        }
-
-        .stat-box {
-            background: #f1f5f9;
-            padding: 10px;
-            border-radius: 12px;
-            text-align: center;
-        }
-
-        .stat-box span {
-            display: block;
-            font-size: 0.75rem;
-            color: var(--text-sub);
-            text-transform: uppercase;
-        }
-
-        .stat-box b {
-            font-size: 1.1rem;
-            color: var(--primary);
-        }
-
         .timeline {
             display: flex;
             flex-direction: column;
@@ -107,18 +82,7 @@
         .event-card.is-help {
             border: 2px solid var(--danger);
             background: #fffafa;
-            animation: pulse 2s infinite;
         }
-
-        @keyframes pulse {
-            0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
-            70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
-            100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
-        }
-
-        .date-info .day { font-weight: 700; font-size: 1rem; }
-        .date-info .host-name { color: var(--text-sub); font-size: 0.9rem; }
-        .date-info .host-name.me { color: var(--primary); font-weight: 600; }
 
         button {
             border: none;
@@ -153,7 +117,6 @@
             <input type="text" id="meinName" placeholder="Dein Name...">
             <button class="btn-save" onclick="saveName()">OK</button>
         </div>
-        <div id="stats" class="stats-grid"></div>
     </div>
 
     <div id="liste" class="timeline">
@@ -170,7 +133,7 @@
     let aktuellerUser = localStorage.getItem("host_user") || "";
     document.getElementById("meinName").value = aktuellerUser;
 
-    // Feste Reihenfolge
+    // ⭐ Feste Reihenfolge
     const festeReihenfolge = [
         "ayca",
         "reyyan",
@@ -180,7 +143,6 @@
         "merve aylin",
         "aise"
     ];
-
 
     function saveName() {
         const nameInput = document.getElementById("meinName").value.trim();
@@ -197,36 +159,46 @@
         render();
     }
 
+    // ⭐ Vereinfachter Tausch mit Name-Eingabe
     async function tausche(id) {
-        if (!aktuellerUser) return alert("Bitte gib deinen Namen ein!");
+        const einspringer = prompt("Wer springt ein? Bitte Name eingeben:");
+
+        if (!einspringer || einspringer.trim() === "") {
+            alert("Name ist erforderlich!");
+            return;
+        }
+
+        const name = einspringer.trim().toLowerCase();
 
         const { data: termine } = await client.from("termine").select("*");
 
         const hilfeTermin = termine.find(t => t.id === id);
-        const meinTermin = termine.find(
-            t => t.host.toLowerCase() === aktuellerUser.toLowerCase() && t.status === "confirmed"
+        const einspringerTermin = termine.find(
+            t => t.host.toLowerCase() === name && t.status === "confirmed"
         );
 
-        if (!meinTermin) return alert("Du hast keinen bestätigten Termin!");
+        if (!einspringerTermin) {
+            alert("Diese Person hat keinen bestätigten Termin zum Tauschen!");
+            return;
+        }
 
-        // 1. Du springst ein
+        // 1. Einspringer übernimmt den Hilfe-Termin
         await client.from("termine")
             .update({
-                host: aktuellerUser,
+                host: einspringer,
                 status: "confirmed",
-                hosting_count: (hilfeTermin.hosting_count || 0) + 1,
                 tausch_partner: hilfeTermin.host
             })
             .eq("id", hilfeTermin.id);
 
-        // 2. Der andere bekommt deinen Termin
+        // 2. Hilfe-Person übernimmt den Termin des Einspringers
         await client.from("termine")
             .update({
                 host: hilfeTermin.host,
                 status: "confirmed",
-                tausch_partner: aktuellerUser
+                tausch_partner: einspringer
             })
-            .eq("id", meinTermin.id);
+            .eq("id", einspringerTermin.id);
 
         alert("Tausch erfolgreich!");
         render();
@@ -235,8 +207,7 @@
     async function render() {
         const { data: termine, error } = await client
             .from("termine")
-            .select("*")
-            .order("datum_raw", { ascending: true });
+            .select("*");
 
         const liste = document.getElementById("liste");
 
@@ -245,23 +216,12 @@
             return;
         }
 
-        // Sortieren nach fester Reihenfolge
+        // ⭐ Sortieren nach fester Reihenfolge
         termine.sort((a, b) => {
             const indexA = festeReihenfolge.indexOf(a.host.toLowerCase());
             const indexB = festeReihenfolge.indexOf(b.host.toLowerCase());
             return indexA - indexB;
         });
-
-        const stats = {};
-        termine.forEach(t => {
-            stats[t.host] = (stats[t.host] || 0) + (t.hosting_count || 0);
-        });
-
-        document.getElementById("stats").innerHTML = Object.entries(stats)
-            .map(([name, count]) =>
-                `<div class="stat-box"><span>${name}</span><b>${count}x</b></div>`
-            )
-            .join("");
 
         liste.innerHTML = "";
 
@@ -273,22 +233,19 @@
                 <div class="event-card ${brauchtHilfe ? "is-help" : ""}">
                     <div class="date-info">
                         <span class="day">${t.datum_formatiert}</span>
-                        <span class="host-name ${istMein ? "me" : ""}">
-                            ${brauchtHilfe 
-                                ? "⚠️ allah rizasi icin yardim!!!" 
-                                : `Hoster: ${t.host}${t.tausch_partner ? " (getauscht mit " + t.tausch_partner + ")" : ""}`
-                            }
-                            ${istMein ? " (Du)" : ""}
+                        <span class="host-name">
+                            Hoster: ${t.host}
+                            ${t.tausch_partner ? " (getauscht mit " + t.tausch_partner + ")" : ""}
                         </span>
                     </div>
                     <div>
                         ${
-                            istMein && t.status === "confirmed"
+                            t.status === "confirmed" && istMein
                                 ? `<button class="btn-cancel" onclick="markiereHilfe(${t.id})">Abgeben</button>`
                                 : ""
                         }
                         ${
-                            !istMein && t.status === "hilfe"
+                            t.status === "hilfe" && !istMein
                                 ? `<button class="btn-take" onclick="tausche(${t.id})">Einspringen</button>`
                                 : ""
                         }
