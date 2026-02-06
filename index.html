@@ -136,8 +136,19 @@
 
         // --- Banner Logik ---
         // Wir nehmen den ersten Termin der Liste als "Aktuell"
-        const aktuell = termine[0];
-        const aktuellDatum = holeDatumText(0);
+        const heute = new Date();
+        heute.setHours(0, 0, 0, 0); 
+
+        // Findet den Termin für heute oder den nächsten Donnerstag
+        let aktuell = termine.find((t, index) => {
+            let tDatum = new Date(startDatum);
+            tDatum.setDate(startDatum.getDate() + (index * 7));
+            return tDatum >= heute;
+        }) || termine[0]; 
+
+        const aktuellIndex = termine.indexOf(aktuell);
+        const aktuellDatum = holeDatumText(aktuellIndex);
+
         document.getElementById("welcome-area").innerHTML = `
             <div class="welcome-banner">
                 <h2>Nächster Host (${aktuellDatum})</h2>
