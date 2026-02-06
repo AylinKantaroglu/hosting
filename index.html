@@ -67,6 +67,7 @@
             display: grid;
             grid-template-columns: repeat(2, 1fr);
             gap: 10px;
+            margin-bottom: 20px;
         }
 
         .stat-box {
@@ -170,13 +171,23 @@
     let aktuellerUser = localStorage.getItem("host_user") || "";
     document.getElementById("meinName").value = aktuellerUser;
 
+    // ⭐ Feste Reihenfolge
+    const festeReihenfolge = [
+        "ayca",
+        "reyyan",
+        "esma",
+        "büsra",
+        "fatima",
+        "merve aylin",
+        "aise"
+    ];
+
     function saveName() {
         const nameInput = document.getElementById("meinName").value.trim();
         if (nameInput === "") return alert("Bitte gib einen Namen ein!");
 
         aktuellerUser = nameInput;
         localStorage.setItem("host_user", aktuellerUser);
-        alert("Name gespeichert!");
         render();
     }
 
@@ -185,42 +196,55 @@
         render();
     }
 
+    // ⭐ Vereinfachter Tausch: Name eingeben → tauschen
     async function tausche(id) {
-        if (!aktuellerUser) return alert("Bitte gib deinen Namen ein!");
+        const einspringer = prompt("Wer springt ein? Bitte Name eingeben:");
+
+        if (!einspringer || einspringer.trim() === "") {
+            alert("Name ist erforderlich!");
+            return;
+        }
+
+        const name = einspringer.trim().toLowerCase();
 
         const { data: termine } = await client.from("termine").select("*");
 
         const hilfeTermin = termine.find(t => t.id === id);
-        const meinTermin = termine.find(
-            t => t.host.toLowerCase() === aktuellerUser.toLowerCase() && t.status === "confirmed"
+        const einspringerTermin = termine.find(
+            t => t.host.toLowerCase() === name && t.status === "confirmed"
         );
 
-        if (!meinTermin) return alert("Du hast keinen bestätigten Termin!");
+        if (!einspringerTermin) {
+            alert("Diese Person hat keinen bestätigten Termin!");
+            return;
+        }
 
+        // Einspringer übernimmt
         await client.from("termine")
             .update({
-                host: aktuellerUser,
+                host: einspringer,
                 status: "confirmed",
+                tausch_partner: hilfeTermin.host,
                 hosting_count: (hilfeTermin.hosting_count || 0) + 1
             })
             .eq("id", hilfeTermin.id);
 
+        // Hilfe-Person übernimmt den anderen Termin
         await client.from("termine")
             .update({
                 host: hilfeTermin.host,
-                status: "confirmed"
+                status: "confirmed",
+                tausch_partner: einspringer
             })
-            .eq("id", meinTermin.id);
+            .eq("id", einspringerTermin.id);
 
-        alert("Tausch erfolgreich!");
         render();
     }
 
     async function render() {
         const { data: termine, error } = await client
             .from("termine")
-            .select("*")
-            .order("datum_raw", { ascending: true });
+            .select("*");
 
         const liste = document.getElementById("liste");
 
@@ -229,6 +253,14 @@
             return;
         }
 
+        // ⭐ Sortieren nach fester Reihenfolge
+        termine.sort((a, b) => {
+            const indexA = festeReihenfolge.indexOf(a.host.toLowerCase());
+            const indexB = festeReihenfolge.indexOf(b.host.toLowerCase());
+            return indexA - indexB;
+        });
+
+        // ⭐ Host-Count berechnen
         const stats = {};
         termine.forEach(t => {
             stats[t.host] = (stats[t.host] || 0) + (t.hosting_count || 0);
@@ -250,14 +282,22 @@
                 <div class="event-card ${brauchtHilfe ? "is-help" : ""}">
                     <div class="date-info">
                         <span class="day">${t.datum_formatiert}</span>
-                        <span class="host-name ${istMein ? "me" : ""}">
-                            ${brauchtHilfe ? "⚠️ Hilfe gesucht" : "Hoster: " + t.host}
-                            ${istMein ? " (Du)" : ""}
+                        <span class="host-name">
+                            Hoster: ${t.host}
+                            ${t.tausch_partner ? " (getauscht mit " + t.tausch_partner + ")" : ""}
                         </span>
                     </div>
                     <div>
-                        ${istMein && !brauchtHilfe ? `<button class="btn-cancel" onclick="markiereHilfe(${t.id})">Abgeben</button>` : ""}
-                        ${brauchtHilfe && !istMein ? `<button class="btn-take" onclick="tausche(${t.id})">Einspringen</button>` : ""}
+                        ${
+                            t.status === "confirmed" && istMein
+                                ? `<button class="btn-cancel" onclick="markiereHilfe(${t.id})">Abgeben</button>`
+                                : ""
+                        }
+                        ${
+                            t.status === "hilfe" && !istMein
+                                ? `<button class="btn-take" onclick="tausche(${t.id})">Einspringen</button>`
+                                : ""
+                        }
                     </div>
                 </div>
             `;
