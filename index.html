@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Host-Planer Pro</title>
+    <title>Host-Planer</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         :root {
@@ -14,10 +14,25 @@
             --text-sub: #64748b;
             --danger: #ef4444;
             --success: #22c55e;
+            --accent: #f59e0b;
         }
         body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var(--text-main); margin: 0; display: flex; justify-content: center; padding: 20px 15px; }
         .app-container { width: 100%; max-width: 480px; }
         h1 { font-size: 1.5rem; font-weight: 800; color: var(--primary); margin-bottom: 20px; text-align: center; }
+
+        .welcome-banner {
+            background: linear-gradient(135deg, var(--primary), #818cf8);
+            color: white;
+            padding: 20px;
+            border-radius: 25px;
+            text-align: center;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 15px -3px rgba(99, 102, 241, 0.3);
+        }
+        .welcome-banner h2 { margin: 0; font-size: 1.2rem; opacity: 0.9; }
+        .welcome-banner .host-now { font-size: 1.8rem; font-weight: 900; margin: 10px 0; display: block; }
+        .welcome-banner p { margin: 0; font-style: italic; font-size: 0.9rem; opacity: 0.8; }
+
         .user-card { background: var(--card); padding: 20px; border-radius: 20px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); margin-bottom: 25px; }
         .input-group { display: flex; gap: 10px; margin-bottom: 15px; }
         .user-card input { flex-grow: 1; padding: 12px; border: 2px solid #e2e8f0; border-radius: 12px; font-size: 1rem; outline: none; }
@@ -42,7 +57,8 @@
 <body>
 
 <div class="app-container">
-    <h1>Host-Planer</h1>
+    <div id="welcome-area"></div>
+
     <div class="user-card">
         <div class="input-group">
             <input type="text" id="meinName" placeholder="Dein Name...">
@@ -50,6 +66,7 @@
         </div>
         <div id="stats" class="stats-grid"></div>
     </div>
+
     <div id="liste" class="timeline">
         <div class="empty-state">Verbinde zur Datenbank...</div>
     </div>
@@ -71,11 +88,11 @@
         if (nameInput === "") return alert("Bitte Name eingeben!");
         aktuellerUser = nameInput;
         localStorage.setItem("host_user", aktuellerUser);
-        alert("Nutzer gespeichert: " + aktuellerUser);
+        //alert("Nutzer gespeichert: " + aktuellerUser);
         render();
     }
 
-    // ⭐ Automatische Berechnung: Erster Name = Startdatum, dann immer +7 Tage
+    //  Automatische Berechnung: Erster Name = Startdatum, dann immer +7 Tage
     function holeDatumText(index) {
         let d = new Date(startDatum);
         d.setDate(startDatum.getDate() + (index * 7));
@@ -98,32 +115,16 @@
     }
 
     async function tausche(hilfeId) {
-        if (!aktuellerUser) return alert("Trage erst deinen Namen oben ein!");
-        const { data: termine } = await client.from("termine").select("*");
-        const hilfeTermin = termine.find(t => t.id === hilfeId);
-        
-        // Suche DEINEN aktuellen Termin (Case-Insensitive)
-        const meinTermin = termine.find(t => 
-            t.host.toLowerCase().trim() === aktuellerUser.toLowerCase().trim() && 
-            t.status === "confirmed"
-        );
+            if (!aktuellerUser) return alert("Trage erst deinen Namen oben ein!");
+            const { data: termine } = await client.from("termine").select("*");
+            const hilfeTermin = termine.find(t => t.id === hilfeId);
+            const meinTermin = termine.find(t => t.host.toLowerCase().trim() === aktuellerUser.toLowerCase().trim() && t.status === "confirmed");
 
-        if (!meinTermin) return alert("Tausch nicht möglich! Du hast keinen eigenen Termin mit Status 'confirmed'.");
+            if (!meinTermin) return alert("Tausch nicht möglich!");
 
-        await client.from("termine").update({
-            host: aktuellerUser,
-            tausch_partner: hilfeTermin.host, 
-            status: "confirmed"
-        }).eq("id", hilfeId);
-
-        await client.from("termine").update({
-            host: hilfeTermin.host,
-            tausch_partner: aktuellerUser,
-            status: "confirmed"
-        }).eq("id", meinTermin.id);
-
-        alert("Erfolgreich getauscht!");
-        render();
+            await client.from("termine").update({ host: aktuellerUser, tausch_partner: hilfeTermin.host, status: "confirmed" }).eq("id", hilfeId);
+            await client.from("termine").update({ host: hilfeTermin.host, tausch_partner: aktuellerUser, status: "confirmed" }).eq("id", meinTermin.id);
+            render();
     }
 
     async function render() {
@@ -164,7 +165,7 @@
             const istMein = hostClean === aktuellerUser.toLowerCase().trim();
             const brauchtHilfe = t.status === "hilfe";
             
-            // ⭐ Datum wird wochenweise berechnet
+            //  Datum wird wochenweise berechnet
             const datumAnzeige = holeDatumText(index);
             
             let hostLabel = `Host: ${t.host}`;
