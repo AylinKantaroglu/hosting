@@ -135,28 +135,41 @@
         termine.sort((a, b) => festeReihenfolge.indexOf(a.host.toLowerCase()) - festeReihenfolge.indexOf(b.host.toLowerCase()));
 
         // --- Banner Logik ---
-        // Wir nehmen den ersten Termin der Liste als "Aktuell"
+        // --- Banner Logik ---
         const heute = new Date();
         heute.setHours(0, 0, 0, 0); 
 
-        // Findet den Termin für heute oder den nächsten Donnerstag
-        let aktuell = termine.find((t, index) => {
+        // 1. Wir berechnen für jeden Termin das reale Datum
+        // 2. Wir suchen den Termin, der heute oder als nächstes ansteht
+        let aktuell = null;
+        let aktuellDatumText = "";
+
+        for (let i = 0; i < termine.length; i++) {
             let tDatum = new Date(startDatum);
-            tDatum.setDate(startDatum.getDate() + (index * 7));
-            return tDatum >= heute;
-        }) || termine[0]; 
+            tDatum.setDate(startDatum.getDate() + (i * 7));
+            
+            if (tDatum >= heute) {
+                aktuell = termine[i];
+                aktuellDatumText = holeDatumText(i);
+                break; // Wir haben den nächsten anstehenden Termin gefunden
+            }
+        }
 
-        const aktuellIndex = termine.indexOf(aktuell);
-        const aktuellDatum = holeDatumText(aktuellIndex);
+        // Falls alle Termine in der Vergangenheit liegen, nimm den letzten
+        if (!aktuell) {
+            aktuell = termine[termine.length - 1];
+            aktuellDatumText = holeDatumText(termine.length - 1);
+        }
 
+        // Zeige den Namen an, der JETZT in der Spalte 'host' steht
         document.getElementById("welcome-area").innerHTML = `
             <div class="welcome-banner">
-                <h2>Nächster Host (${aktuellDatum})</h2>
+                <h2>Nächster Host (${aktuellDatumText})</h2>
                 <span class="host-now">${aktuell.host.toUpperCase()}</span>
                 <p>Ihr seid herzlich willkommen brudis!</p>
             </div>
         `;
-
+        
         // Statistik
         const stats = {};
         festeReihenfolge.forEach(n => stats[n] = 0);
@@ -175,8 +188,6 @@
             const hostClean = t.host.toLowerCase().trim();
             const istMein = hostClean === aktuellerUser.toLowerCase().trim();
             const brauchtHilfe = t.status === "hilfe";
-            
-            //  Datum wird wochenweise berechnet
             const datumAnzeige = holeDatumText(index);
             
             let hostLabel = `Host: ${t.host}`;
