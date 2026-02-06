@@ -88,11 +88,9 @@
         if (nameInput === "") return alert("Bitte Name eingeben!");
         aktuellerUser = nameInput;
         localStorage.setItem("host_user", aktuellerUser);
-        //alert("Nutzer gespeichert: " + aktuellerUser);
         render();
     }
 
-    //  Automatische Berechnung: Erster Name = Startdatum, dann immer +7 Tage
     function holeDatumText(index) {
         let d = new Date(startDatum);
         d.setDate(startDatum.getDate() + (index * 7));
@@ -105,19 +103,13 @@
     }
 
     async function hostErledigt(id) {
-        // Termin laden
-        const { data: termin } = await client
-            .from("termine")
-            .select("*")
-            .eq("id", id)
-            .single();
-
-        // Punkt für den aktuellen Host
+        const { data: termin } = await client.from("termine").select("*").eq("id", id).single();
         const neuerCount = (termin.hosting_count || 0) + 1;
 
         await client.from("termine").update({
             hosting_count: neuerCount,
-            status: "confirmed"
+            status: "confirmed",
+            tausch_partner: null // Nach Erledigung Tausch-Info zurücksetzen
         }).eq("id", id);
 
         alert("Punkt wurde für " + termin.host + " gezählt!");
@@ -126,27 +118,25 @@
 
     async function tausche(hilfeId) {
         if (!aktuellerUser) return alert("Trage erst deinen Namen oben ein!");
-        
-        // 1. Alle Termine laden, um deinen eigenen zu finden
         const { data: termine } = await client.from("termine").select("*");
-        
         const hilfeTermin = termine.find(t => t.id === hilfeId);
+        
+        // Finde DEINEN aktuellen festen Termin zum Tauschen
         const meinTermin = termine.find(t => 
             t.host.toLowerCase().trim() === aktuellerUser.toLowerCase().trim() && 
             t.status === "confirmed"
         );
 
-        if (!meinTermin) return alert("Tausch nicht möglich! Du hast keinen eigenen festen Termin.");
+        if (!meinTermin) return alert("Tausch nicht möglich! Du hast keinen eigenen festen Termin zum Anbieten.");
 
-        // 2. Namen in der Datenbank wirklich tauschen
-        // Dein Name wird in die Zeile geschrieben, wo Hilfe gesucht wurde
+        // 1. Hilfe-Termin auf dich umschreiben
         await client.from("termine").update({ 
             host: aktuellerUser, 
             tausch_partner: hilfeTermin.host, 
             status: "confirmed" 
         }).eq("id", hilfeId);
 
-        // Der Name der anderen Person wird in DEINE ursprüngliche Zeile geschrieben
+        // 2. Deinen alten Platz dem anderen geben
         await client.from("termine").update({ 
             host: hilfeTermin.host, 
             tausch_partner: aktuellerUser, 
@@ -155,25 +145,19 @@
 
         render();
     }
+
     async function render() {
         const { data: termine, error } = await client.from("termine").select("*");
         if (error) return;
 
-        // Sortierung nach Liste
-        termine.sort((a, b) => festeReihenfolge.indexOf(a.host.toLowerCase()) - festeReihenfolge.indexOf(b.host.toLowerCase()));
-
-        // --- Banner Logik (Fix) ---
-        const heute = new Date();
-        heute.setHours(0, 0, 0, 0); 
-
-        // Wir sortieren die Termine NUR für das Banner nach dem echten Datum (ID)
+        // Banner Logik
+        const heute = new Date(); heute.setHours(0, 0, 0, 0); 
         const termineNachDatum = [...termine].sort((a, b) => a.id - b.id);
-
         let aktuell = termineNachDatum.find((t, index) => {
             let tDatum = new Date(startDatum);
             tDatum.setDate(startDatum.getDate() + (index * 7));
             return tDatum >= heute;
-        }) || termineNachDatum[0]; 
+        }) || termineNachDatum[0];
 
         const aktuellIndex = termineNachDatum.indexOf(aktuell);
         const aktuellDatumText = holeDatumText(aktuellIndex);
@@ -183,8 +167,7 @@
                 <h2>Nächster Host (${aktuellDatumText})</h2>
                 <span class="host-now">${aktuell.host.toUpperCase()}</span>
                 <p>Ihr seid herzlich willkommen brudis!</p>
-            </div>
-        `;
+            </div>`;
 
         // Statistik
         const stats = {};
@@ -200,15 +183,20 @@
         const liste = document.getElementById("liste");
         liste.innerHTML = "";
 
-        termine.forEach((t, index) => {
+        // Sortierung für die Anzeige (Wochen-Reihenfolge beibehalten)
+        const anzeigeListe = [...termine].sort((a,b) => a.id - b.id);
+
+        anzeigeListe.forEach((t, index) => {
             const hostClean = t.host.toLowerCase().trim();
             const istMein = hostClean === aktuellerUser.toLowerCase().trim();
             const brauchtHilfe = t.status === "hilfe";
             const datumAnzeige = holeDatumText(index);
             
-            let hostLabel = `Host: ${t.host}`;
+            let hostAnzeigeHTML = ""; 
             if (t.tausch_partner) {
-                hostLabel = `Host: ${t.host} <br><small style="color:var(--primary)">(Tausch mit ${t.tausch_partner})</small>`;
+                hostAnzeigeHTML = `<b>Host: ${t.host}</b> <br><small style="color:var(--primary)">(Tausch mit ${t.tausch_partner})</small>`;
+            } else {
+                hostAnzeigeHTML = `<b>Host: ${t.host}</b>`;
             }
 
             liste.innerHTML += `
@@ -216,14 +204,14 @@
                     <div class="date-info">
                         <span class="day">${datumAnzeige} (19:00 Uhr)</span>
                         <div class="host-info ${istMein ? "me" : ""}">
-                            ${brauchtHilfe ? "⚠️ kann nicht hosten!" : hostLabel}
+                            ${brauchtHilfe ? "⚠️ kann nicht hosten!" : hostAnzeigeHTML}
                             ${istMein ? " (Du)" : ""}
                         </div>
                     </div>
                     <div style="display:flex; gap:5px;">
                         ${istMein && !brauchtHilfe ? `<button class="btn-cancel" onclick="markiereHilfe(${t.id})">will abgeben</button>` : ""}
-                        ${istMein && !brauchtHilfe ? `<button class="btn-done" onclick="hostErledigt(${t.id})">kann hosten</button>` : ""}
-                        ${brauchtHilfe && !istMein ? `<button class="btn-take" onclick="tausche(${t.id})">kann übernehmen</button>` : ""}
+                        ${istMein && !brauchtHilfe ? `<button class="btn-done" style="background:#dcfce7; color:#166534;" onclick="hostErledigt(${t.id})">kann hosten ✅</button>` : ""}
+                        ${brauchtHilfe && !istMein ? `<button class="btn-take" style="background:#22c55e; color:white;" onclick="tausche(${t.id})">kann übernehmen</button>` : ""}
                     </div>
                 </div>`;
         });
