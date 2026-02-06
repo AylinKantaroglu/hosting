@@ -67,7 +67,6 @@
             display: grid;
             grid-template-columns: repeat(2, 1fr);
             gap: 10px;
-            margin-bottom: 20px;
         }
 
         .stat-box {
@@ -108,7 +107,18 @@
         .event-card.is-help {
             border: 2px solid var(--danger);
             background: #fffafa;
+            animation: pulse 2s infinite;
         }
+
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
+            70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+        }
+
+        .date-info .day { font-weight: 700; font-size: 1rem; }
+        .date-info .host-name { color: var(--text-sub); font-size: 0.9rem; }
+        .date-info .host-name.me { color: var(--primary); font-weight: 600; }
 
         button {
             border: none;
@@ -160,22 +170,13 @@
     let aktuellerUser = localStorage.getItem("host_user") || "";
     document.getElementById("meinName").value = aktuellerUser;
 
-    const festeReihenfolge = [
-        "ayca",
-        "reyyan",
-        "esma",
-        "büsra",
-        "fatima",
-        "merve aylin",
-        "aise"
-    ];
-
     function saveName() {
         const nameInput = document.getElementById("meinName").value.trim();
         if (nameInput === "") return alert("Bitte gib einen Namen ein!");
 
         aktuellerUser = nameInput;
         localStorage.setItem("host_user", aktuellerUser);
+        alert("Name gespeichert!");
         render();
     }
 
@@ -184,35 +185,22 @@
         render();
     }
 
-    // ⭐ NEUE, FUNKTIONIERENDE TAUSCH-FUNKTION
     async function tausche(id) {
-        const einspringer = prompt("Wer springt ein? Bitte Name eingeben:");
-
-        if (!einspringer || einspringer.trim() === "") {
-            alert("Name ist erforderlich!");
-            return;
-        }
-
-        const einspringerName = einspringer.trim().toLowerCase();
+        if (!aktuellerUser) return alert("Bitte gib deinen Namen ein!");
 
         const { data: termine } = await client.from("termine").select("*");
 
         const hilfeTermin = termine.find(t => t.id === id);
-        const einspringerTermin = termine.find(
-            t => t.host.toLowerCase() === einspringerName && t.status === "confirmed"
+        const meinTermin = termine.find(
+            t => t.host.toLowerCase() === aktuellerUser.toLowerCase() && t.status === "confirmed"
         );
 
-        if (!einspringerTermin) {
-            alert("Diese Person hat keinen bestätigten Termin!");
-            return;
-        }
+        if (!meinTermin) return alert("Du hast keinen bestätigten Termin!");
 
-        // ⭐ Tausch durchführen
         await client.from("termine")
             .update({
-                host: einspringer,
+                host: aktuellerUser,
                 status: "confirmed",
-                tausch_partner: hilfeTermin.host,
                 hosting_count: (hilfeTermin.hosting_count || 0) + 1
             })
             .eq("id", hilfeTermin.id);
@@ -220,18 +208,19 @@
         await client.from("termine")
             .update({
                 host: hilfeTermin.host,
-                status: "confirmed",
-                tausch_partner: einspringer
+                status: "confirmed"
             })
-            .eq("id", einspringerTermin.id);
+            .eq("id", meinTermin.id);
 
+        alert("Tausch erfolgreich!");
         render();
     }
 
     async function render() {
         const { data: termine, error } = await client
             .from("termine")
-            .select("*");
+            .select("*")
+            .order("datum_raw", { ascending: true });
 
         const liste = document.getElementById("liste");
 
@@ -240,14 +229,6 @@
             return;
         }
 
-        // ⭐ Sortieren nach fester Reihenfolge
-        termine.sort((a, b) => {
-            const indexA = festeReihenfolge.indexOf(a.host.toLowerCase());
-            const indexB = festeReihenfolge.indexOf(b.host.toLowerCase());
-            return indexA - indexB;
-        });
-
-        // ⭐ Host-Count berechnen
         const stats = {};
         termine.forEach(t => {
             stats[t.host] = (stats[t.host] || 0) + (t.hosting_count || 0);
@@ -269,22 +250,14 @@
                 <div class="event-card ${brauchtHilfe ? "is-help" : ""}">
                     <div class="date-info">
                         <span class="day">${t.datum_formatiert}</span>
-                        <span class="host-name">
-                            Hoster: ${t.host}
-                            ${t.tausch_partner ? " (getauscht mit " + t.tausch_partner + ")" : ""}
+                        <span class="host-name ${istMein ? "me" : ""}">
+                            ${brauchtHilfe ? "⚠️ allah i" : "Hoster: " + t.host}
+                            ${istMein ? " (Du)" : ""}
                         </span>
                     </div>
                     <div>
-                        ${
-                            t.status === "confirmed" && istMein
-                                ? `<button class="btn-cancel" onclick="markiereHilfe(${t.id})">Abgeben</button>`
-                                : ""
-                        }
-                        ${
-                            t.status === "hilfe" && !istMein
-                                ? `<button class="btn-take" onclick="tausche(${t.id})">Einspringen</button>`
-                                : ""
-                        }
+                        ${istMein && !brauchtHilfe ? `<button class="btn-cancel" onclick="markiereHilfe(${t.id})">Abgeben</button>` : ""}
+                        ${brauchtHilfe && !istMein ? `<button class="btn-take" onclick="tausche(${t.id})">Einspringen</button>` : ""}
                     </div>
                 </div>
             `;
