@@ -236,7 +236,7 @@
                     </div>
                     <div style="display:flex; gap:5px;">
                         ${istAktuellerHost && !brauchtHilfe ? `<button class="btn-cancel" onclick="markiereHilfe(${t.id})">will abgeben</button>` : ""}
-                        ${istAktuellerHost && !brauchtHilfe ? `<button class="btn-done" style="background:#dcfce7; color:#166534;" onclick="hostErledigt(${t.id})">gehostet ✅</button>` : ""}
+                        ${istAktuellerHost && !brauchtHilfe ? `<button class="btn-done" style="background:#dcfce7; color:#166534;" onclick="hostErledigt(${t.id})">gehostet</button>` : ""}
                         ${brauchtHilfe && !istAktuellerHost ? `<button class="btn-take" style="background:#22c55e; color:white;" onclick="tausche(${t.id})">kann übernehmen</button>` : ""}
                     </div>
                 </div>`;
