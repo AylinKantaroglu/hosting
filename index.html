@@ -29,14 +29,15 @@
         .event-card { background: var(--card); padding: 16px; border-radius: 18px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
         .event-card.is-help { border: 2px solid var(--danger); background: #fffafa; animation: pulse 2s infinite; }
         @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); } 70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); } 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); } }
-        .date-info .day { font-weight: 700; font-size: 1rem; }
-        .host-info { font-size: 0.9rem; color: var(--text-sub); }
+        .date-info .day { font-weight: 700; font-size: 1rem; color: var(--text-main); }
+        .host-name { font-size: 0.9rem; color: var(--text-sub); margin-top: 4px; }
         .me { color: var(--primary); font-weight: 600; }
         button { border: none; padding: 10px 16px; border-radius: 10px; font-weight: 600; font-size: 0.85rem; cursor: pointer; }
         .btn-save { background: var(--primary); color: white; }
         .btn-cancel { background: #fee2e2; color: var(--danger); }
         .btn-take { background: var(--success); color: white; }
         .btn-done { background: #dcfce7; color: #166534; border: 1px solid var(--success); margin-left: 5px; }
+        .empty-state { text-align: center; color: var(--text-sub); margin-top: 40px; padding: 20px; background: white; border-radius: 15px; }
     </style>
 </head>
 <body>
@@ -64,6 +65,9 @@
     document.getElementById("meinName").value = aktuellerUser;
 
     const festeReihenfolge = ["ayca", "reyyan", "esma", "büsra", "fatima", "merve aylin", "aise"];
+    
+    // Startdatum festlegen: Donnerstag, 26. März 2026
+    const startDatum = new Date("2026-03-26");
 
     function saveName() {
         const nameInput = document.getElementById("meinName").value.trim().toLowerCase();
@@ -72,6 +76,13 @@
         localStorage.setItem("host_user", aktuellerUser);
         alert("Nutzer gespeichert: " + aktuellerUser);
         render();
+    }
+
+    // Hilfsfunktion zur Datumsberechnung (+7 Tage pro Listenplatz)
+    function berechneDatum(index) {
+        let date = new Date(startDatum);
+        date.setDate(startDatum.getDate() + (index * 7));
+        return date.toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' }) + ".";
     }
 
     async function markiereHilfe(id) {
@@ -91,42 +102,29 @@
 
     async function tausche(hilfeId) {
         if (!aktuellerUser) return alert("Trage erst deinen Namen oben ein!");
-        
-        const { data: termine, error: loadError } = await client.from("termine").select("*");
-        if (loadError) return alert("Fehler beim Laden: " + loadError.message);
-
+        const { data: termine } = await client.from("termine").select("*");
         const hilfeTermin = termine.find(t => t.id === hilfeId);
         
-        // Findet DEINEN nächsten Termin (Egal ob du es groß oder klein schreibst)
         const meinTermin = termine.find(t => 
             t.host.toLowerCase().trim() === aktuellerUser.toLowerCase().trim() && 
             t.status === "confirmed"
         );
 
-        if (!meinTermin) {
-            alert("Tausch nicht möglich! Du hast keinen eigenen Termin mit Status 'confirmed', den du zum Tausch anbieten kannst.");
-            return;
-        }
+        if (!meinTermin) return alert("Tausch nicht möglich! Du hast keinen eigenen Termin mit Status 'confirmed'.");
 
-        // 1. Hilfe-Termin auf dich umschreiben
-        const { error: err1 } = await client.from("termine").update({
+        await client.from("termine").update({
             host: aktuellerUser,
             tausch_partner: hilfeTermin.host, 
             status: "confirmed"
-        }).eq("id", hilfeTermin.id);
+        }).eq("id", hilfeId);
 
-        // 2. Deinen alten Platz dem anderen geben
-        const { error: err2 } = await client.from("termine").update({
+        await client.from("termine").update({
             host: hilfeTermin.host,
             tausch_partner: aktuellerUser,
             status: "confirmed"
         }).eq("id", meinTermin.id);
 
-        if (err1 || err2) {
-            alert("Fehler beim Tausch in der Datenbank!");
-        } else {
-            alert("Erfolgreich getauscht mit " + hilfeTermin.host);
-        }
+        alert("Erfolgreich getauscht mit " + hilfeTermin.host);
         render();
     }
 
@@ -134,10 +132,8 @@
         const { data: termine, error } = await client.from("termine").select("*");
         if (error) return;
 
-        // Sortierung nach fester Liste
         termine.sort((a, b) => festeReihenfolge.indexOf(a.host.toLowerCase()) - festeReihenfolge.indexOf(b.host.toLowerCase()));
 
-        // Statistik
         const stats = {};
         festeReihenfolge.forEach(n => stats[n] = 0);
         termine.forEach(t => { 
@@ -151,10 +147,11 @@
         const liste = document.getElementById("liste");
         liste.innerHTML = "";
 
-        termine.forEach(t => {
+        termine.forEach((t, index) => {
             const hostClean = t.host.toLowerCase().trim();
             const istMein = hostClean === aktuellerUser.toLowerCase().trim();
             const brauchtHilfe = t.status === "hilfe";
+            const datumText = berechneDatum(index);
             
             let hostAnzeige = `Host: ${t.host}`;
             if (t.tausch_partner) {
@@ -164,7 +161,7 @@
             liste.innerHTML += `
                 <div class="event-card ${brauchtHilfe ? "is-help" : ""}">
                     <div class="date-info">
-                        <span class="day">${t.datum_formatiert}</span>
+                        <span class="day">${datumText} (19:00 Uhr)</span>
                         <div class="host-name ${istMein ? "me" : ""}">
                             ${brauchtHilfe ? "⚠️ Hilfe gesucht!" : hostAnzeige}
                             ${istMein ? " (Du)" : ""}
