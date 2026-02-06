@@ -108,18 +108,7 @@
         .event-card.is-help {
             border: 2px solid var(--danger);
             background: #fffafa;
-            animation: pulse 2s infinite;
         }
-
-        @keyframes pulse {
-            0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
-            70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
-            100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
-        }
-
-        .date-info .day { font-weight: 700; font-size: 1rem; }
-        .date-info .host-name { color: var(--text-sub); font-size: 0.9rem; }
-        .date-info .host-name.me { color: var(--primary); font-weight: 600; }
 
         button {
             border: none;
@@ -171,7 +160,6 @@
     let aktuellerUser = localStorage.getItem("host_user") || "";
     document.getElementById("meinName").value = aktuellerUser;
 
-    // ⭐ Feste Reihenfolge
     const festeReihenfolge = [
         "ayca",
         "reyyan",
@@ -196,7 +184,7 @@
         render();
     }
 
-    // ⭐ Vereinfachter Tausch: Name eingeben → tauschen
+    // ⭐ NEUE, FUNKTIONIERENDE TAUSCH-FUNKTION
     async function tausche(id) {
         const einspringer = prompt("Wer springt ein? Bitte Name eingeben:");
 
@@ -205,13 +193,13 @@
             return;
         }
 
-        const name = einspringer.trim().toLowerCase();
+        const einspringerName = einspringer.trim().toLowerCase();
 
         const { data: termine } = await client.from("termine").select("*");
 
         const hilfeTermin = termine.find(t => t.id === id);
         const einspringerTermin = termine.find(
-            t => t.host.toLowerCase() === name && t.status === "confirmed"
+            t => t.host.toLowerCase() === einspringerName && t.status === "confirmed"
         );
 
         if (!einspringerTermin) {
@@ -219,7 +207,7 @@
             return;
         }
 
-        // Einspringer übernimmt
+        // ⭐ Tausch durchführen
         await client.from("termine")
             .update({
                 host: einspringer,
@@ -229,7 +217,6 @@
             })
             .eq("id", hilfeTermin.id);
 
-        // Hilfe-Person übernimmt den anderen Termin
         await client.from("termine")
             .update({
                 host: hilfeTermin.host,
