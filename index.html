@@ -79,6 +79,7 @@
     }
 
     async function hostErledigt(id, aktuellerCount) {
+        // Erhöht den Zähler und setzt Tausch-Info zurück
         await client.from("termine").update({ 
             status: "confirmed", 
             tausch_partner: null,
@@ -88,29 +89,19 @@
     }
 
     async function tausche(hilfeId) {
-        if (!aktuellerUser) return alert("Gib erst deinen Namen oben ein!");
+        if (!aktuellerUser) return alert("Trage erst deinen Namen oben ein!");
         
         const { data: termine } = await client.from("termine").select("*");
         const hilfeTermin = termine.find(t => t.id === hilfeId);
         
-        // Findet deinen Termin, egal ob Ayca oder ayca
+        // Suche DEINEN nächsten regulären Termin
         const meinTermin = termine.find(t => t.host.toLowerCase() === aktuellerUser && t.status === "confirmed");
 
         if (!meinTermin) return alert("Du hast keinen freien Termin zum Tauschen!");
 
-        // 1. Hilfe-Termin aktualisieren (Du übernimmst)
-        await client.from("termine").update({
-            host: aktuellerUser,
-            tausch_partner: hilfeTermin.host, 
-            status: "confirmed"
-        }).eq("id", hilfeTermin.id);
-
-        // 2. Deinen alten Termin dem anderen geben
-        await client.from("termine").update({
-            host: hilfeTermin.host,
-            tausch_partner: aktuellerUser,
-            status: "confirmed"
-        }).eq("id", meinTermin.id);
+        // Tausch in der DB: Du nimmst den Hilfe-Termin, der andere deinen
+        await client.from("termine").update({ host: aktuellerUser, tausch_partner: hilfeTermin.host, status: "confirmed" }).eq("id", hilfeTermin.id);
+        await client.from("termine").update({ host: hilfeTermin.host, tausch_partner: aktuellerUser, status: "confirmed" }).eq("id", meinTermin.id);
 
         alert("Tausch erfolgreich!");
         render();
@@ -120,8 +111,10 @@
         const { data: termine, error } = await client.from("termine").select("*");
         if (error) return;
 
+        // Sortierung nach fester Liste
         termine.sort((a, b) => festeReihenfolge.indexOf(a.host.toLowerCase()) - festeReihenfolge.indexOf(b.host.toLowerCase()));
 
+        // Statistik
         const stats = {};
         festeReihenfolge.forEach(n => stats[n] = 0);
         termine.forEach(t => { if(stats[t.host.toLowerCase()] !== undefined) stats[t.host.toLowerCase()] += (t.hosting_count || 0); });
@@ -146,18 +139,17 @@
                 <div class="event-card ${brauchtHilfe ? "is-help" : ""}">
                     <div class="date-info">
                         <span class="day">${t.datum_formatiert}</span>
-                        <div class="host-info ${istMein ? "me" : ""}">
+                        <div class="host-name ${istMein ? "me" : ""}">
                             ${brauchtHilfe ? "⚠️ Hilfe gesucht!" : hostAnzeige}
                             ${istMein ? " (Du)" : ""}
                         </div>
                     </div>
-                    <div style="display:flex; align-items:center;">
+                    <div style="display:flex; gap:5px;">
                         ${istMein && !brauchtHilfe ? `<button class="btn-cancel" onclick="markiereHilfe(${t.id})">Abgeben</button>` : ""}
-                        ${istMein && !brauchtHilfe ? `<button class="btn-done" onclick="hostErledigt(${t.id}, ${t.hosting_count})">Erledigt ✅</button>` : ""}
+                        ${istMein && !brauchtHilfe ? `<button class="btn-take" style="background:#22c55e" onclick="hostErledigt(${t.id}, ${t.hosting_count})">Erledigt ✅</button>` : ""}
                         ${brauchtHilfe && !istMein ? `<button class="btn-take" onclick="tausche(${t.id})">Einspringen</button>` : ""}
                     </div>
-                </div>
-            `;
+                </div>`;
         });
     }
 
