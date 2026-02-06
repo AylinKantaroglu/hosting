@@ -196,9 +196,13 @@
             const brauchtHilfe = t.status === "hilfe";
             const datumAnzeige = holeDatumText(index);
             
-            let hostLabel = `Host: ${t.host}`;
+            let hostAnzeige = `<b>Host: ${t.host}</b>`; 
             if (t.tausch_partner) {
-                hostLabel = `Host: ${t.host} <br><small style="color:var(--primary)">(Tausch mit ${t.tausch_partner})</small>`;
+                // Zeigt: "Host: Esma (Tausch mit Ayca)"
+                hostAnzeige = `<b>Host: ${t.host}</b> <br><small style="color:var(--primary)">(Tausch mit ${t.tausch_partner})</small>`;
+            }
+            else {
+                hostAnzeige = `<b>Host: ${t.host}</b>`;
             }
 
             liste.innerHTML += `
@@ -212,7 +216,7 @@
                     </div>
                     <div style="display:flex; gap:5px;">
                         ${istMein && !brauchtHilfe ? `<button class="btn-cancel" onclick="markiereHilfe(${t.id})">will abgeben</button>` : ""}
-                        ${istMein && !brauchtHilfe ? `<button class="btn-done" onclick="hostErledigt(${t.id}, ${t.hosting_count})">kann hosten ✅</button>` : ""}
+                        ${istMein && !brauchtHilfe ? `<button class="btn-done" onclick="hostErledigt(${t.id}, ${t.hosting_count})">kann hosten</button>` : ""}
                         ${brauchtHilfe && !istMein ? `<button class="btn-take" onclick="tausche(${t.id})">kann übernehmen</button>` : ""}
                     </div>
                 </div>`;
