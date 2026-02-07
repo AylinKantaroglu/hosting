@@ -103,7 +103,7 @@
     }
 
     async function hostErledigt(id) {
-        const { data: termin } = await client.from("termine").select("* gehostet, reicht doch!").eq("id", id).single();
+        const { data: termin } = await client.from("termine").select("*").eq("id", id).single();
         const neuerCount = (termin.hosting_count || 0) + 1;
 
         await client.from("termine").update({
@@ -112,7 +112,7 @@
             tausch_partner: null 
         }).eq("id", id);
 
-        alert("Punkt wurde für " + termin.host.toUpperCase() + " gezählt!");
+        alert("Masallah, noch ein Punkt geht an " + termin.host.toUpperCase() + "! 🎉");
         render();
     }
 
