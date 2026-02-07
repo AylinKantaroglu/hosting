@@ -61,7 +61,7 @@
 
     <div class="user-card">
         <div class="input-group">
-            <input type="text" id="meinName" placeholder="Dein Name...">
+            <input type="text" id="meinName" placeholder="erstmal dein namen richtig eingeben.">
             <button class="btn-save" onclick="saveName()">OK</button>
         </div>
         <div id="stats" class="stats-grid"></div>
@@ -85,7 +85,7 @@
 
     function saveName() {
         const nameInput = document.getElementById("meinName").value.trim().toLowerCase();
-        if (nameInput === "") return alert("Bitte Name eingeben!");
+        if (nameInput === "") return alert("name BITTE!");
         aktuellerUser = nameInput;
         localStorage.setItem("host_user", aktuellerUser);
         render();
@@ -103,7 +103,7 @@
     }
 
     async function hostErledigt(id) {
-        const { data: termin } = await client.from("termine").select("*").eq("id", id).single();
+        const { data: termin } = await client.from("termine").select("* gehostet, reicht doch!").eq("id", id).single();
         const neuerCount = (termin.hosting_count || 0) + 1;
 
         await client.from("termine").update({
@@ -117,7 +117,7 @@
     }
 
     async function tausche(hilfeId) {
-        if (!aktuellerUser) return alert("Trage erst deinen Namen oben ein!");
+        if (!aktuellerUser) return alert("erst name oben eintragen!");
         const { data: termine } = await client.from("termine").select("*");
         const hilfeTermin = termine.find(t => t.id === hilfeId);
         
@@ -189,9 +189,9 @@
 
         document.getElementById("welcome-area").innerHTML = `
             <div class="welcome-banner">
-                <h2>Nächster Host (${aktuellDatumText})</h2>
+                <h2>hoster der woche (${aktuellDatumText})</h2>
                 <span class="host-now">${aktuell.host.toUpperCase()}</span>
-                <p>Ihr seid herzlich willkommen brudis!</p>
+                <p> hele şükür!</p>
             </div>`;
 
         // ... (hier geht es weiter mit Statistik und Liste wie gewohnt)
