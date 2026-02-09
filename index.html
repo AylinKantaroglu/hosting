@@ -154,14 +154,12 @@
         const heute = new Date();
         heute.setHours(0, 0, 0, 0);
 
-        // Wir sortieren die Termine fest nach ID, damit die Reihenfolge immer gleich bleibt
+        // WICHTIG: Sortierung nach ID für die korrekte Datums-Zuordnung
         const sortierteTermine = [...termine].sort((a, b) => a.id - b.id);
 
-        // --- AUTOMATISCHER RESET & ENDLOS-LOGIK ---
+        // --- AUTOMATISCHER RESET LOGIK ---
         const msProWoche = 7 * 24 * 60 * 60 * 1000;
-        // Wir berechnen, wie viele Wochen seit dem Start vergangen sind
         const vergangeneWochenGesamt = Math.floor((heute - startDatum) / msProWoche);
-        // Wir finden den Start der aktuellen 7-Wochen-Runde
         const rundenStartWoche = Math.floor(vergangeneWochenGesamt / 7) * 7;
         
         const aktuellerRundenStart = new Date(startDatum);
@@ -171,12 +169,14 @@
             let t = sortierteTermine[i];
             let tDatum = new Date(aktuellerRundenStart);
             tDatum.setDate(aktuellerRundenStart.getDate() + (i * 7));
-            tDatum.setHours(23, 59, 59);
+            
+            // Wir setzen das Reset-Limit auf das Ende des Freitags (Tag nach Donnerstag)
+            let resetLimit = new Date(tDatum);
+            resetLimit.setDate(resetLimit.getDate() + 1); 
 
-            // RESET-LOGIK: Wenn der Termin in der Vergangenheit liegt, zurück auf Original
-            if (tDatum < heute) {
+            // Nur wenn der Termin VORBEI ist (Freitag), wird zurückgesetzt
+            if (heute > resetLimit) {
                 const originalHost = festeReihenfolge[i];
-                // Nur in der DB updaten, wenn wirklich etwas anders ist
                 if (t.host.toLowerCase() !== originalHost || t.tausch_partner !== null || t.status === "hilfe") {
                     await client.from("termine").update({
                         host: originalHost,
