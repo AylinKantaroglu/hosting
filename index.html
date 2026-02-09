@@ -200,15 +200,16 @@
 
         // ... (hier geht es weiter mit Statistik und Liste wie gewohnt)
 
-        const stats = {};
-        festeReihenfolge.forEach(n => stats[n] = 0);
-        termine.forEach(t => { 
-            const h = t.host.toLowerCase().trim();
-            if(stats[h] !== undefined) stats[h] += (t.hosting_count || 0); 
-        });
+    // Statistik aus der NEUEN Tabelle laden
+        const { data: punkteListe } = await client.from("punkte").select("*");
+        
+        const statsHTML = festeReihenfolge.map(name => {
+            const pData = punkteListe.find(p => p.name.toLowerCase() === name.toLowerCase());
+            const count = pData ? pData.count : 0;
+            return `<div class="stat-box"><span>${name}</span><b>${count}x</b></div>`;
+        }).join("");
 
-        document.getElementById("stats").innerHTML = Object.entries(stats)
-            .map(([n, c]) => `<div class="stat-box"><span>${n}</span><b>${c}x</b></div>`).join("");
+        document.getElementById("stats").innerHTML = statsHTML;
 
         const liste = document.getElementById("liste");
         liste.innerHTML = "";
