@@ -147,32 +147,36 @@
         render();
     }
 
-   async function render() {
+    async function render() {
         const { data: termine, error } = await client.from("termine").select("*");
-        if (error) return;
+        if (error || !termine) return;
 
         const heute = new Date();
         heute.setHours(0, 0, 0, 0);
 
-        // --- INTELLIGENTER RESET & ENDLOS-LOGIK ---
-        // Wir berechnen, wie viele Wochen seit dem allerersten Start vergangen sind
-        const msProWoche = 7 * 24 * 60 * 60 * 1000;
-        const vergangeneWochen = Math.floor((heute - startDatum) / msProWoche);
-        
-        // Wenn mehr als 7 Wochen vergangen sind, schiebt sich der Zyklus automatisch weiter
-        const zyklusStartWoche = Math.floor(vergangeneWochen / 7) * 7;
-        const aktuellerZyklusStart = new Date(startDatum);
-        aktuellerZyklusStart.setDate(startDatum.getDate() + (zyklusStartWoche * 7));
+        // Wir sortieren die Termine fest nach ID, damit die Reihenfolge immer gleich bleibt
+        const sortierteTermine = [...termine].sort((a, b) => a.id - b.id);
 
-        for (let i = 0; i < termine.length; i++) {
-            let t = termine[i];
-            let tDatum = new Date(aktuellerZyklusStart);
-            tDatum.setDate(aktuellerZyklusStart.getDate() + (i * 7));
+        // --- AUTOMATISCHER RESET & ENDLOS-LOGIK ---
+        const msProWoche = 7 * 24 * 60 * 60 * 1000;
+        // Wir berechnen, wie viele Wochen seit dem Start vergangen sind
+        const vergangeneWochenGesamt = Math.floor((heute - startDatum) / msProWoche);
+        // Wir finden den Start der aktuellen 7-Wochen-Runde
+        const rundenStartWoche = Math.floor(vergangeneWochenGesamt / 7) * 7;
+        
+        const aktuellerRundenStart = new Date(startDatum);
+        aktuellerRundenStart.setDate(startDatum.getDate() + (rundenStartWoche * 7));
+
+        for (let i = 0; i < sortierteTermine.length; i++) {
+            let t = sortierteTermine[i];
+            let tDatum = new Date(aktuellerRundenStart);
+            tDatum.setDate(aktuellerRundenStart.getDate() + (i * 7));
             tDatum.setHours(23, 59, 59);
 
-            // Automatischer Reset für Termine, die in der Vergangenheit liegen
+            // RESET-LOGIK: Wenn der Termin in der Vergangenheit liegt, zurück auf Original
             if (tDatum < heute) {
                 const originalHost = festeReihenfolge[i];
+                // Nur in der DB updaten, wenn wirklich etwas anders ist
                 if (t.host.toLowerCase() !== originalHost || t.tausch_partner !== null || t.status === "hilfe") {
                     await client.from("termine").update({
                         host: originalHost,
@@ -183,34 +187,34 @@
             }
         }
 
-        // Banner Logik mit dem dynamischen Zyklus-Datum
-        const termineNachDatum = [...termine].sort((a, b) => a.id - b.id);
+        // BANNER LOGIK
         let aktuell = null;
-        let aktuellDatumText = "";
+        let aktuellDatumAnzeige = "";
 
-        for (let i = 0; i < termineNachDatum.length; i++) {
-            let tDatum = new Date(aktuellerZyklusStart);
-            tDatum.setDate(aktuellerZyklusStart.getDate() + (i * 7));
+        for (let i = 0; i < sortierteTermine.length; i++) {
+            let tDatum = new Date(aktuellerRundenStart);
+            tDatum.setDate(aktuellerRundenStart.getDate() + (i * 7));
+            
             if (tDatum >= heute) {
-                aktuell = termineNachDatum[i];
-                // Wir übergeben das berechnete Datum an die Text-Funktion
-                let d = new Date(aktuellerZyklusStart);
-                d.setDate(aktuellerZyklusStart.getDate() + (i * 7));
-                aktuellDatumText = d.toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' }) + ".";
+                aktuell = sortierteTermine[i];
+                aktuellDatumAnzeige = tDatum.toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' }) + ".";
                 break;
             }
         }
         
-        if(!aktuell) aktuell = termineNachDatum[0]; // Backup
+        if (!aktuell) {
+            aktuell = sortierteTermine[0];
+            aktuellDatumAnzeige = holeDatumText(0); 
+        }
 
         document.getElementById("welcome-area").innerHTML = `
             <div class="welcome-banner">
-                <h2>hoster der woche (${aktuellDatumText})</h2>
+                <h2>hoster der woche (${aktuellDatumAnzeige})</h2>
                 <span class="host-now">${aktuell.host.toUpperCase()}</span>
                 <p> hele şükür!</p>
             </div>`;
 
-        // Statistik aus der separaten Punkte-Tabelle laden
+        // STATISTIK (aus der Punkte-Tabelle)
         const { data: punkteListe } = await client.from("punkte").select("*");
         const statsHTML = festeReihenfolge.map(name => {
             const pData = punkteListe ? punkteListe.find(p => p.name.toLowerCase() === name.toLowerCase()) : null;
@@ -219,31 +223,30 @@
         }).join("");
         document.getElementById("stats").innerHTML = statsHTML;
 
-        // Liste rendern
+        // LISTE RENDERN
         const liste = document.getElementById("liste");
         liste.innerHTML = "";
-        const anzeigeListe = [...termine].sort((a,b) => a.id - b.id);
 
-        anzeigeListe.forEach((t, index) => {
+        sortierteTermine.forEach((t, index) => {
             const hostClean = t.host.toLowerCase().trim();
             const istAktuellerHost = hostClean === aktuellerUser.toLowerCase().trim();
             const brauchtHilfe = t.status === "hilfe";
             
-            // Datum für die Anzeige berechnen
-            let dAnzeige = new Date(aktuellerZyklusStart);
-            dAnzeige.setDate(aktuellerZyklusStart.getDate() + (index * 7));
-            const datumAnzeige = dAnzeige.toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' }) + ".";
-            
-            let hostAnzeigeHTML = t.tausch_partner 
+            // Datum für die Zeile berechnen
+            let dZeile = new Date(aktuellerRundenStart);
+            dZeile.setDate(aktuellerRundenStart.getDate() + (index * 7));
+            const datumText = dZeile.toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' }) + ".";
+
+            let anzeigeHTML = t.tausch_partner 
                 ? `<b>Host: ${t.host}</b> <br><small style="color:var(--primary)">(Tausch mit ${t.tausch_partner})</small>`
                 : `<b>Host: ${t.host}</b>`;
 
             liste.innerHTML += `
                 <div class="event-card ${brauchtHilfe ? "is-help" : ""}">
                     <div class="date-info">
-                        <span class="day">${datumAnzeige} (19:00 Uhr)</span>
+                        <span class="day">${datumText} (19:00 Uhr)</span>
                         <div class="host-info ${istAktuellerHost ? "me" : ""}">
-                            ${brauchtHilfe ? "⚠️ kann nicht hosten!" : hostAnzeigeHTML}
+                            ${brauchtHilfe ? "⚠️ kann nicht hosten!" : anzeigeHTML}
                             ${istAktuellerHost ? " (Du)" : ""}
                         </div>
                     </div>
