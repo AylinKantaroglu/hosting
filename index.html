@@ -147,29 +147,33 @@
         render();
     }
 
-    async function render() {
+   async function render() {
         const { data: termine, error } = await client.from("termine").select("*");
         if (error) return;
 
-        // --- NEU: AUTOMATISCHER RESET FÜR VERGANGENE WOCHEN ---
         const heute = new Date();
         heute.setHours(0, 0, 0, 0);
 
-        // Wir gehen alle Termine durch und prüfen das Datum
+        // --- INTELLIGENTER RESET & ENDLOS-LOGIK ---
+        // Wir berechnen, wie viele Wochen seit dem allerersten Start vergangen sind
+        const msProWoche = 7 * 24 * 60 * 60 * 1000;
+        const vergangeneWochen = Math.floor((heute - startDatum) / msProWoche);
+        
+        // Wenn mehr als 7 Wochen vergangen sind, schiebt sich der Zyklus automatisch weiter
+        const zyklusStartWoche = Math.floor(vergangeneWochen / 7) * 7;
+        const aktuellerZyklusStart = new Date(startDatum);
+        aktuellerZyklusStart.setDate(startDatum.getDate() + (zyklusStartWoche * 7));
+
         for (let i = 0; i < termine.length; i++) {
             let t = termine[i];
-            
-            // Wir berechnen das Datum für diesen Listenplatz (ID)
-            let tDatum = new Date(startDatum);
-            tDatum.setDate(startDatum.getDate() + (i * 7));
-            tDatum.setHours(23, 59, 59); // Wir geben dem Host den ganzen Donnerstag Zeit
+            let tDatum = new Date(aktuellerZyklusStart);
+            tDatum.setDate(aktuellerZyklusStart.getDate() + (i * 7));
+            tDatum.setHours(23, 59, 59);
 
-            // Wenn der Tag vorbei ist UND der Name nicht dem Original entspricht oder ein Tausch drinsteht
+            // Automatischer Reset für Termine, die in der Vergangenheit liegen
             if (tDatum < heute) {
                 const originalHost = festeReihenfolge[i];
-                
                 if (t.host.toLowerCase() !== originalHost || t.tausch_partner !== null || t.status === "hilfe") {
-                    // Zurücksetzen in der Datenbank
                     await client.from("termine").update({
                         host: originalHost,
                         tausch_partner: null,
@@ -178,18 +182,26 @@
                 }
             }
         }
-        // -------------------------------------------------------
 
-        // Ab hier folgt dein normaler Code für das Banner
+        // Banner Logik mit dem dynamischen Zyklus-Datum
         const termineNachDatum = [...termine].sort((a, b) => a.id - b.id);
-        let aktuell = termineNachDatum.find((t, index) => {
-            let tDatum = new Date(startDatum);
-            tDatum.setDate(startDatum.getDate() + (index * 7));
-            return tDatum >= heute;
-        }) || termineNachDatum[0];
+        let aktuell = null;
+        let aktuellDatumText = "";
 
-        const aktuellIndex = termineNachDatum.indexOf(aktuell);
-        const aktuellDatumText = holeDatumText(aktuellIndex);
+        for (let i = 0; i < termineNachDatum.length; i++) {
+            let tDatum = new Date(aktuellerZyklusStart);
+            tDatum.setDate(aktuellerZyklusStart.getDate() + (i * 7));
+            if (tDatum >= heute) {
+                aktuell = termineNachDatum[i];
+                // Wir übergeben das berechnete Datum an die Text-Funktion
+                let d = new Date(aktuellerZyklusStart);
+                d.setDate(aktuellerZyklusStart.getDate() + (i * 7));
+                aktuellDatumText = d.toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' }) + ".";
+                break;
+            }
+        }
+        
+        if(!aktuell) aktuell = termineNachDatum[0]; // Backup
 
         document.getElementById("welcome-area").innerHTML = `
             <div class="welcome-banner">
@@ -198,36 +210,33 @@
                 <p> hele şükür!</p>
             </div>`;
 
-        // ... (hier geht es weiter mit Statistik und Liste wie gewohnt)
+        // Statistik aus der separaten Punkte-Tabelle laden
+        const { data: punkteListe } = await client.from("punkte").select("*");
+        const statsHTML = festeReihenfolge.map(name => {
+            const pData = punkteListe ? punkteListe.find(p => p.name.toLowerCase() === name.toLowerCase()) : null;
+            const count = pData ? pData.count : 0;
+            return `<div class="stat-box"><span>${name}</span><b>${count}x</b></div>`;
+        }).join("");
+        document.getElementById("stats").innerHTML = statsHTML;
 
-        const stats = {};
-        festeReihenfolge.forEach(n => stats[n] = 0);
-        termine.forEach(t => { 
-            const h = t.host.toLowerCase().trim();
-            if(stats[h] !== undefined) stats[h] += (t.hosting_count || 0); 
-        });
-
-        document.getElementById("stats").innerHTML = Object.entries(stats)
-            .map(([n, c]) => `<div class="stat-box"><span>${n}</span><b>${c}x</b></div>`).join("");
-
+        // Liste rendern
         const liste = document.getElementById("liste");
         liste.innerHTML = "";
-
         const anzeigeListe = [...termine].sort((a,b) => a.id - b.id);
 
         anzeigeListe.forEach((t, index) => {
             const hostClean = t.host.toLowerCase().trim();
-            // WICHTIG: Prüfen, ob der eingeloggte User der aktuelle Host in der DB ist
             const istAktuellerHost = hostClean === aktuellerUser.toLowerCase().trim();
             const brauchtHilfe = t.status === "hilfe";
-            const datumAnzeige = holeDatumText(index);
             
-            let hostAnzeigeHTML = ""; 
-            if (t.tausch_partner) {
-                hostAnzeigeHTML = `<b>Host: ${t.host}</b> <br><small style="color:var(--primary)">(Tausch mit ${t.tausch_partner})</small>`;
-            } else {
-                hostAnzeigeHTML = `<b>Host: ${t.host}</b>`;
-            }
+            // Datum für die Anzeige berechnen
+            let dAnzeige = new Date(aktuellerZyklusStart);
+            dAnzeige.setDate(aktuellerZyklusStart.getDate() + (index * 7));
+            const datumAnzeige = dAnzeige.toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' }) + ".";
+            
+            let hostAnzeigeHTML = t.tausch_partner 
+                ? `<b>Host: ${t.host}</b> <br><small style="color:var(--primary)">(Tausch mit ${t.tausch_partner})</small>`
+                : `<b>Host: ${t.host}</b>`;
 
             liste.innerHTML += `
                 <div class="event-card ${brauchtHilfe ? "is-help" : ""}">
