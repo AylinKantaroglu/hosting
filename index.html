@@ -104,15 +104,19 @@
 
     async function hostErledigt(id) {
         const { data: termin } = await client.from("termine").select("*").eq("id", id).single();
+        
+        // Wir speichern, wer GERADE hostet, damit der Punkt sicher ist
+        const werHatGehostet = termin.host.toLowerCase().trim();
         const neuerCount = (termin.hosting_count || 0) + 1;
 
+        // Wir updaten den Count
         await client.from("termine").update({
             hosting_count: neuerCount,
-            status: "confirmed",
-            tausch_partner: null 
+            status: "confirmed"
+            // tausch_partner lassen wir hier noch stehen, damit render() weiß, wer es war
         }).eq("id", id);
 
-        alert("Masallah, noch ein Punkt geht an " + termin.host.toUpperCase() + "! 🎉");
+        alert("Punkt für " + werHatGehostet.toUpperCase() + " wurde gesichert!");
         render();
     }
 
