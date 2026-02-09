@@ -81,8 +81,7 @@
     document.getElementById("meinName").value = aktuellerUser;
 
     const festeReihenfolge = ["ayca", "reyyan", "esma", "büsra", "fatima", "merve aylin", "aise"];
-    // Wir setzen das Startdatum auf den ersten Donnerstag im Februar für den Test
-    const startDatum = new Date("2026-02-05");
+    const startDatum = new Date("2026-03-26");
 
     function saveName() {
         const nameInput = document.getElementById("meinName").value.trim().toLowerCase();
@@ -92,7 +91,6 @@
         render();
     }
 
-    // Funktion für die Datumsanzeige (bleibt stabil)
     function holeDatumText(index) {
         let d = new Date(startDatum);
         d.setDate(startDatum.getDate() + (index * 7));
@@ -105,19 +103,20 @@
     }
 
     async function hostErledigt(id) {
+        // 1. Wer hostet gerade an diesem Termin?
         const { data: termin } = await client.from("termine").select("host").eq("id", id).single();
         const werHatGehostet = termin.host.toLowerCase().trim();
 
-        // Punkt in der separaten Tabelle 'punkte' speichern
+        // 2. Punkt in der NEUEN Punkte-Tabelle erhöhen
         const { data: punkteData } = await client.from("punkte").select("count").eq("name", werHatGehostet).single();
-        const neuerPunkteStand = (punkteData ? punkteData.count : 0) + 1;
+        const neuerPunkteStand = (punkteData.count || 0) + 1;
 
         await client.from("punkte").update({ count: neuerPunkteStand }).eq("name", werHatGehostet);
 
-        // Termin wieder auf normal setzen
+        // 3. Den Termin als confirmed markieren (aber keinen Count in der Termin-Tabelle)
         await client.from("termine").update({ status: "confirmed", tausch_partner: null }).eq("id", id);
 
-        alert("Masallah, noch ein Punkt geht an " + werHatGehostet.toUpperCase() + "! 🎉");
+        alert("Masallah, noch ein Punkt geht an " + termin.host.toUpperCase() + "! 🎉");
         render();
     }
 
@@ -131,44 +130,78 @@
             t.status === "confirmed"
         );
 
-        if (!meinTermin) return alert("Tausch nicht möglich! Du hast keinen eigenen festen Termin.");
+        if (!meinTermin) return alert("Tausch nicht möglich! Du hast keinen eigenen festen Termin zum Anbieten.");
 
-        await client.from("termine").update({ host: aktuellerUser, tausch_partner: hilfeTermin.host, status: "confirmed" }).eq("id", hilfeId);
-        await client.from("termine").update({ host: hilfeTermin.host, tausch_partner: aktuellerUser, status: "confirmed" }).eq("id", meinTermin.id);
+        await client.from("termine").update({ 
+            host: aktuellerUser, 
+            tausch_partner: hilfeTermin.host, 
+            status: "confirmed" 
+        }).eq("id", hilfeId);
+
+        await client.from("termine").update({ 
+            host: hilfeTermin.host, 
+            tausch_partner: aktuellerUser, 
+            status: "confirmed" 
+        }).eq("id", meinTermin.id);
 
         render();
     }
 
-    // Hilfsfunktion für den manuellen Reset, falls mal alles durcheinander ist
-    async function manuellerReset() {
-        if(!confirm("Alle Namen auf Original-Reihenfolge zurücksetzen?")) return;
-        for (let i = 0; i < festeReihenfolge.length; i++) {
-            await client.from("termine").update({
-                host: festeReihenfolge[i],
-                tausch_partner: null,
-                status: "confirmed"
-            }).eq("id", i + 1);
-        }
-        render();
-    }
-
-    async function render() {
+   async function render() {
         const { data: termine, error } = await client.from("termine").select("*");
         if (error) return;
 
         const heute = new Date();
         heute.setHours(0, 0, 0, 0);
 
-        // Banner Logik
-        const sortierteTermine = [...termine].sort((a, b) => a.id - b.id);
-        let aktuell = sortierteTermine.find((t, index) => {
-            let tDatum = new Date(startDatum);
-            tDatum.setDate(startDatum.getDate() + (index * 7));
-            return tDatum >= heute;
-        }) || sortierteTermine[0];
+        // --- INTELLIGENTER RESET & ENDLOS-LOGIK ---
+        // Wir berechnen, wie viele Wochen seit dem allerersten Start vergangen sind
+        const msProWoche = 7 * 24 * 60 * 60 * 1000;
+        const vergangeneWochen = Math.floor((heute - startDatum) / msProWoche);
+        
+        // Wenn mehr als 7 Wochen vergangen sind, schiebt sich der Zyklus automatisch weiter
+        const zyklusStartWoche = Math.floor(vergangeneWochen / 7) * 7;
+        const aktuellerZyklusStart = new Date(startDatum);
+        aktuellerZyklusStart.setDate(startDatum.getDate() + (zyklusStartWoche * 7));
 
-        const aktuellIndex = sortierteTermine.indexOf(aktuell);
-        const aktuellDatumText = holeDatumText(aktuellIndex);
+        for (let i = 0; i < termine.length; i++) {
+            let t = termine[i];
+            let tDatum = new Date(aktuellerZyklusStart);
+            tDatum.setDate(aktuellerZyklusStart.getDate() + (i * 7));
+            tDatum.setHours(23, 59, 59);
+
+            // Automatischer Reset für Termine, die in der Vergangenheit liegen
+            if (tDatum < heute) {
+                const originalHost = festeReihenfolge[i];
+                if (t.host.toLowerCase() !== originalHost || t.tausch_partner !== null || t.status === "hilfe") {
+                    await client.from("termine").update({
+                        host: originalHost,
+                        tausch_partner: null,
+                        status: "confirmed"
+                    }).eq("id", t.id);
+                }
+            }
+        }
+
+        // Banner Logik mit dem dynamischen Zyklus-Datum
+        const termineNachDatum = [...termine].sort((a, b) => a.id - b.id);
+        let aktuell = null;
+        let aktuellDatumText = "";
+
+        for (let i = 0; i < termineNachDatum.length; i++) {
+            let tDatum = new Date(aktuellerZyklusStart);
+            tDatum.setDate(aktuellerZyklusStart.getDate() + (i * 7));
+            if (tDatum >= heute) {
+                aktuell = termineNachDatum[i];
+                // Wir übergeben das berechnete Datum an die Text-Funktion
+                let d = new Date(aktuellerZyklusStart);
+                d.setDate(aktuellerZyklusStart.getDate() + (i * 7));
+                aktuellDatumText = d.toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' }) + ".";
+                break;
+            }
+        }
+        
+        if(!aktuell) aktuell = termineNachDatum[0]; // Backup
 
         document.getElementById("welcome-area").innerHTML = `
             <div class="welcome-banner">
@@ -177,7 +210,7 @@
                 <p> hele şükür!</p>
             </div>`;
 
-        // Statistik aus der Tabelle 'punkte'
+        // Statistik aus der separaten Punkte-Tabelle laden
         const { data: punkteListe } = await client.from("punkte").select("*");
         const statsHTML = festeReihenfolge.map(name => {
             const pData = punkteListe ? punkteListe.find(p => p.name.toLowerCase() === name.toLowerCase()) : null;
@@ -186,15 +219,20 @@
         }).join("");
         document.getElementById("stats").innerHTML = statsHTML;
 
-        // Liste
+        // Liste rendern
         const liste = document.getElementById("liste");
         liste.innerHTML = "";
+        const anzeigeListe = [...termine].sort((a,b) => a.id - b.id);
 
-        sortierteTermine.forEach((t, index) => {
+        anzeigeListe.forEach((t, index) => {
             const hostClean = t.host.toLowerCase().trim();
             const istAktuellerHost = hostClean === aktuellerUser.toLowerCase().trim();
             const brauchtHilfe = t.status === "hilfe";
-            const datumAnzeige = holeDatumText(index);
+            
+            // Datum für die Anzeige berechnen
+            let dAnzeige = new Date(aktuellerZyklusStart);
+            dAnzeige.setDate(aktuellerZyklusStart.getDate() + (index * 7));
+            const datumAnzeige = dAnzeige.toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' }) + ".";
             
             let hostAnzeigeHTML = t.tausch_partner 
                 ? `<b>Host: ${t.host}</b> <br><small style="color:var(--primary)">(Tausch mit ${t.tausch_partner})</small>`
