@@ -103,14 +103,18 @@
     }
 
     async function hostErledigt(id) {
-        const { data: termin } = await client.from("termine").select("*").eq("id", id).single();
-        const neuerCount = (termin.hosting_count || 0) + 1;
+        // 1. Wer hostet gerade an diesem Termin?
+        const { data: termin } = await client.from("termine").select("host").eq("id", id).single();
+        const werHatGehostet = termin.host.toLowerCase().trim();
 
-        await client.from("termine").update({
-            hosting_count: neuerCount,
-            status: "confirmed",
-            tausch_partner: null 
-        }).eq("id", id);
+        // 2. Punkt in der NEUEN Punkte-Tabelle erhöhen
+        const { data: punkteData } = await client.from("punkte").select("count").eq("name", werHatGehostet).single();
+        const neuerPunkteStand = (punkteData.count || 0) + 1;
+
+        await client.from("punkte").update({ count: neuerPunkteStand }).eq("name", werHatGehostet);
+
+        // 3. Den Termin als confirmed markieren (aber keinen Count in der Termin-Tabelle)
+        await client.from("termine").update({ status: "confirmed", tausch_partner: null }).eq("id", id);
 
         alert("Masallah, noch ein Punkt geht an " + termin.host.toUpperCase() + "! 🎉");
         render();
