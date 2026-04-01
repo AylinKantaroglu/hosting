@@ -3,252 +3,203 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Host-Planer</title>
+    <title>Host-Planer Pro</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        :root {
-            --primary: #6366f1;
-            --bg: #f8fafc;
-            --card: #ffffff;
-            --text-main: #1e293b;
-            --text-sub: #64748b;
-            --danger: #ef4444;
-            --success: #22c55e;
-            --accent: #f59e0b;
-        }
-        body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var(--text-main); margin: 0; display: flex; justify-content: center; padding: 20px 15px; }
-        .app-container { width: 100%; max-width: 480px; }
-        h1 { font-size: 1.5rem; font-weight: 800; color: var(--primary); margin-bottom: 20px; text-align: center; }
-
-        .welcome-banner {
-            background: linear-gradient(135deg, var(--primary), #818cf8);
-            color: white;
-            padding: 20px;
-            border-radius: 25px;
-            text-align: center;
-            margin-bottom: 20px;
-            box-shadow: 0 10px 15px -3px rgba(99, 102, 241, 0.3);
-        }
-        .welcome-banner h2 { margin: 0; font-size: 1.2rem; opacity: 0.9; }
-        .welcome-banner .host-now { font-size: 1.8rem; font-weight: 900; margin: 10px 0; display: block; }
-        .welcome-banner p { margin: 0; font-style: italic; font-size: 0.9rem; opacity: 0.8; }
-
-        .user-card { background: var(--card); padding: 20px; border-radius: 20px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); margin-bottom: 25px; }
-        .input-group { display: flex; gap: 10px; margin-bottom: 15px; }
-        .user-card input { flex-grow: 1; padding: 12px; border: 2px solid #e2e8f0; border-radius: 12px; font-size: 1rem; outline: none; }
-        .stats-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
-        .stat-box { background: #f1f5f9; padding: 10px; border-radius: 12px; text-align: center; }
-        .stat-box span { display: block; font-size: 0.75rem; color: var(--text-sub); text-transform: uppercase; }
-        .stat-box b { font-size: 1.1rem; color: var(--primary); }
-        .timeline { display: flex; flex-direction: column; gap: 15px; }
-        .event-card { background: var(--card); padding: 16px; border-radius: 18px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
-        .event-card.is-help { border: 2px solid var(--danger); background: #fffafa; animation: pulse 2s infinite; }
-        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); } 70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); } 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); } }
-        .date-info .day { font-weight: 700; font-size: 1rem; color: var(--text-main); display: block; margin-bottom: 4px; }
-        .host-info { font-size: 0.9rem; color: var(--text-sub); }
-        .me { color: var(--primary); font-weight: 700; }
-        button { border: none; padding: 10px 16px; border-radius: 10px; font-weight: 600; font-size: 0.85rem; cursor: pointer; }
-        .btn-save { background: var(--primary); color: white; }
-        .btn-cancel { background: #fee2e2; color: var(--danger); }
+        :root { --primary: #6366f1; --bg: #f8fafc; --card: #ffffff; --text: #1e293b; --danger: #ef4444; --success: #22c55e; }
+        body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); display: flex; justify-content: center; padding: 20px; }
+        .app-container { width: 100%; max-width: 450px; }
+        .welcome-banner { background: linear-gradient(135deg, var(--primary), #818cf8); color: white; padding: 20px; border-radius: 20px; text-align: center; margin-bottom: 20px; box-shadow: 0 10px 15px rgba(99,102,241,0.2); }
+        .host-now { font-size: 1.8rem; font-weight: 900; display: block; margin: 10px 0; }
+        .user-card { background: var(--card); padding: 15px; border-radius: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 20px; }
+        .input-group { display: flex; gap: 10px; }
+        input { flex: 1; padding: 10px; border: 2px solid #e2e8f0; border-radius: 10px; }
+        .stats-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-top: 15px; }
+        .stat-box { background: #f1f5f9; padding: 8px; border-radius: 10px; text-align: center; font-size: 0.85rem; }
+        .event-card { background: var(--card); padding: 15px; border-radius: 15px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; border-left: 5px solid var(--primary); }
+        .event-card.is-help { border-left-color: var(--danger); background: #fff5f5; }
+        .date-info b { display: block; color: var(--primary); }
+        button { border: none; padding: 8px 12px; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 0.8rem; }
+        .btn-ok { background: var(--primary); color: white; }
+        .btn-give { background: #fee2e2; color: var(--danger); }
+        .btn-done { background: #dcfce7; color: #166534; }
         .btn-take { background: var(--success); color: white; }
-        .btn-done { background: #dcfce7; color: #166534; border: 1px solid var(--success); margin-left: 5px; }
+        .me-badge { background: var(--primary); color: white; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; }
     </style>
 </head>
 <body>
 
 <div class="app-container">
-    <div id="welcome-area"></div>
+    <div id="banner"></div>
 
     <div class="user-card">
         <div class="input-group">
-            <input type="text" id="meinName" placeholder="erstmal dein namen richtig eingeben.">
-            <button class="btn-save" onclick="saveName()">OK</button>
+            <input type="text" id="userName" placeholder="Dein Name...">
+            <button class="btn-ok" onclick="saveUser()">Login</button>
         </div>
         <div id="stats" class="stats-grid"></div>
     </div>
 
-    <div id="liste" class="timeline">
-        <div class="empty-state">Verbinde zur Datenbank...</div>
-    </div>
+    <div id="liste" class="timeline">Lade Planer...</div>
 </div>
 
 <script>
     const SUPABASE_URL = "https://ithgjzvwwrxmdrxzynoi.supabase.co";
-    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml0aGdqenZ3d3J4bWRyeHp5bm9pIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAzNzAyNDksImV4cCI6MjA4NTk0NjI0OX0.G2GEm1_yKSOxq2B8frZO7L32Sz6U3AVY5esR53pIFaY";
+    const SUPABASE_KEY = "DEIN_KEY_HIER";
     const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    let aktuellerUser = localStorage.getItem("host_user") || "";
-    document.getElementById("meinName").value = aktuellerUser;
+    let currentUser = localStorage.getItem("host_user") || "";
+    document.getElementById("userName").value = currentUser;
 
-    const festeReihenfolge = ["ayca", "reyyan", "esma", "büsra", "fatima", "merve aylin", "aise"];
-    const startDatum = new Date("2026-03-26");
+    // Feste Reihenfolge – ändert sich NIE
+    const reihenfolge = ["ayca", "reyyan", "esma", "büsra", "fatima", "merve aylin", "aise"];
 
-    function saveName() {
-        const nameInput = document.getElementById("meinName").value.trim().toLowerCase();
-        if (nameInput === "") return alert("name BITTE!");
-        aktuellerUser = nameInput;
-        localStorage.setItem("host_user", aktuellerUser);
+    // Start-Donnerstag (erster Termin)
+    const startDonnerstag = new Date("2025-03-27");
+
+    function getDonnerstag(weekIndex) {
+        const d = new Date(startDonnerstag);
+        d.setDate(d.getDate() + weekIndex * 7);
+        return d;
+    }
+
+    // Fester Slot-Host (immer aus der Reihenfolge, unabhängig von Tausch)
+    function getSlotHost(weekIndex) {
+        return reihenfolge[weekIndex % reihenfolge.length];
+    }
+
+    function saveUser() {
+        currentUser = document.getElementById("userName").value.trim().toLowerCase();
+        localStorage.setItem("host_user", currentUser);
         render();
     }
 
-    function holeDatumText(index) {
-        let d = new Date(startDatum);
-        d.setDate(startDatum.getDate() + (index * 7));
-        return d.toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' }) + ".";
-    }
+    // „Ich habe gehostet“ → Punkt für tatsächlichen Host
+    async function hostErledigt(weekIndex) {
+        const slotHost = getSlotHost(weekIndex);
 
-    async function markiereHilfe(id) {
-        await client.from("termine").update({ status: "hilfe" }).eq("id", id);
+        const { data: row } = await client
+            .from("termine")
+            .select("*")
+            .eq("week_index", weekIndex)
+            .maybeSingle();
+
+        const neuerStand = (row?.hosting_count || 0) + 1;
+
+        await client.from("termine").upsert({
+            week_index: weekIndex,
+            host: row?.host || currentUser || slotHost, // tatsächlicher Host
+            tausch_partner: row?.tausch_partner || slotHost, // optional: ursprünglicher Slot-Host
+            status: "confirmed",
+            hosting_count: neuerStand
+        });
+
+        alert("Masallah! 1 Punkt wurde eingetragen.");
         render();
     }
 
-    async function hostErledigt(id) {
-        // 1. Wer hostet gerade an diesem Termin?
-        const { data: termin } = await client.from("termine").select("host").eq("id", id).single();
-        const werHatGehostet = termin.host.toLowerCase().trim();
+    // „Ich kann nicht“ → Slot bleibt, aber sucht Ersatz
+    async function hilfeAnfordern(weekIndex) {
+        const slotHost = getSlotHost(weekIndex);
 
-        // 2. Punkt in der NEUEN Punkte-Tabelle erhöhen
-        const { data: punkteData } = await client.from("punkte").select("count").eq("name", werHatGehostet).single();
-        const neuerPunkteStand = (punkteData.count || 0) + 1;
+        // wir markieren nur, dass Hilfe gebraucht wird
+        await client.from("termine").upsert({
+            week_index: weekIndex,
+            status: "hilfe",
+            host: null,
+            tausch_partner: slotHost
+        });
 
-        await client.from("punkte").update({ count: neuerPunkteStand }).eq("name", werHatGehostet);
-
-        // 3. Den Termin als confirmed markieren (aber keinen Count in der Termin-Tabelle)
-        await client.from("termine").update({ status: "confirmed", tausch_partner: null }).eq("id", id);
-
-        alert("Masallah, noch ein Punkt geht an " + termin.host.toUpperCase() + "! 🎉");
         render();
     }
 
-    async function tausche(hilfeId) {
-        if (!aktuellerUser) return alert("erst name oben eintragen!");
-        const { data: termine } = await client.from("termine").select("*");
-        const hilfeTermin = termine.find(t => t.id === hilfeId);
-        
-        const meinTermin = termine.find(t => 
-            t.host.toLowerCase().trim() === aktuellerUser.toLowerCase().trim() && 
-            t.status === "confirmed"
-        );
+    // „Ich übernehme“ → tatsächlicher Host wird gesetzt
+    async function übernehmen(weekIndex) {
+        if (!currentUser) return alert("Bitte Namen eingeben!");
 
-        if (!meinTermin) return alert("Tausch nicht möglich! Du hast keinen eigenen festen Termin zum Anbieten.");
+        const slotHost = getSlotHost(weekIndex);
 
-        await client.from("termine").update({ 
-            host: aktuellerUser, 
-            tausch_partner: hilfeTermin.host, 
-            status: "confirmed" 
-        }).eq("id", hilfeId);
-
-        await client.from("termine").update({ 
-            host: hilfeTermin.host, 
-            tausch_partner: aktuellerUser, 
-            status: "confirmed" 
-        }).eq("id", meinTermin.id);
+        await client.from("termine").upsert({
+            week_index: weekIndex,
+            host: currentUser,        // tatsächlicher Host
+            tausch_partner: slotHost, // ursprünglicher Slot-Host
+            status: "confirmed"
+        });
 
         render();
     }
 
     async function render() {
-        const { data: termine, error } = await client.from("termine").select("*");
-        if (error) return;
-
-        // --- NEU: AUTOMATISCHER RESET FÜR VERGANGENE WOCHEN ---
         const heute = new Date();
-        heute.setHours(0, 0, 0, 0);
+        heute.setHours(0,0,0,0);
 
-        // Wir gehen alle Termine durch und prüfen das Datum
-        for (let i = 0; i < termine.length; i++) {
-            let t = termine[i];
-            
-            // Wir berechnen das Datum für diesen Listenplatz (ID)
-            let tDatum = new Date(startDatum);
-            tDatum.setDate(startDatum.getDate() + (i * 7));
-            tDatum.setHours(23, 59, 59); // Wir geben dem Host den ganzen Donnerstag Zeit
+        const diff = Math.floor((heute - startDonnerstag) / (7 * 24 * 60 * 60 * 1000));
+        const aktuelleWoche = Math.max(0, diff);
 
-            // Wenn der Tag vorbei ist UND der Name nicht dem Original entspricht oder ein Tausch drinsteht
-            if (tDatum < heute) {
-                const originalHost = festeReihenfolge[i];
-                
-                if (t.host.toLowerCase() !== originalHost || t.tausch_partner !== null || t.status === "hilfe") {
-                    // Zurücksetzen in der Datenbank
-                    await client.from("termine").update({
-                        host: originalHost,
-                        tausch_partner: null,
-                        status: "confirmed"
-                    }).eq("id", t.id);
-                }
-            }
-        }
-        // -------------------------------------------------------
+        const { data: termine } = await client.from("termine").select("*");
 
-        // Ab hier folgt dein normaler Code für das Banner
-        const termineNachDatum = [...termine].sort((a, b) => a.id - b.id);
-        let aktuell = termineNachDatum.find((t, index) => {
-            let tDatum = new Date(startDatum);
-            tDatum.setDate(startDatum.getDate() + (index * 7));
-            return tDatum >= heute;
-        }) || termineNachDatum[0];
+        // Statistik: Punkte pro tatsächlichem Host
+        const statsHTML = reihenfolge.map(name => {
+            const punkte = termine
+                ?.filter(t => (t.host || "").toLowerCase().trim() === name.toLowerCase())
+                ?.reduce((sum, t) => sum + (t.hosting_count || 0), 0) || 0;
 
-        const aktuellIndex = termineNachDatum.indexOf(aktuell);
-        const aktuellDatumText = holeDatumText(aktuellIndex);
-
-        document.getElementById("welcome-area").innerHTML = `
-            <div class="welcome-banner">
-                <h2>hoster der woche (${aktuellDatumText})</h2>
-                <span class="host-now">${aktuell.host.toUpperCase()}</span>
-                <p> hele şükür!</p>
-            </div>`;
-
-        // ... (hier geht es weiter mit Statistik und Liste wie gewohnt)
-
-    // Statistik aus der NEUEN Tabelle laden
-        const { data: punkteListe } = await client.from("punkte").select("*");
-        
-        const statsHTML = festeReihenfolge.map(name => {
-            const pData = punkteListe.find(p => p.name.toLowerCase() === name.toLowerCase());
-            const count = pData ? pData.count : 0;
-            return `<div class="stat-box"><span>${name}</span><b>${count}x</b></div>`;
+            return `<div class="stat-box"><span>${name}</span><b>${punkte}x</b></div>`;
         }).join("");
 
         document.getElementById("stats").innerHTML = statsHTML;
 
-        const liste = document.getElementById("liste");
-        liste.innerHTML = "";
+        let listeHTML = "";
+        let bannerSet = false;
 
-        const anzeigeListe = [...termine].sort((a,b) => a.id - b.id);
+        for (let i = 0; i < 10; i++) {
+            const weekIndex = aktuelleWoche + i;
+            const datum = getDonnerstag(weekIndex);
 
-        anzeigeListe.forEach((t, index) => {
-            const hostClean = t.host.toLowerCase().trim();
-            // WICHTIG: Prüfen, ob der eingeloggte User der aktuelle Host in der DB ist
-            const istAktuellerHost = hostClean === aktuellerUser.toLowerCase().trim();
-            const brauchtHilfe = t.status === "hilfe";
-            const datumAnzeige = holeDatumText(index);
-            
-            let hostAnzeigeHTML = ""; 
-            if (t.tausch_partner) {
-                hostAnzeigeHTML = `<b>Host: ${t.host}</b> <br><small style="color:var(--primary)">(Tausch mit ${t.tausch_partner})</small>`;
-            } else {
-                hostAnzeigeHTML = `<b>Host: ${t.host}</b>`;
+            const slotHost = getSlotHost(weekIndex); // fester Plan-Host
+            const override = termine?.find(t => t.week_index === weekIndex);
+
+            const status = override?.status || "planned";
+            const actualHost = override?.host || null; // wer wirklich übernimmt / gehostet hat
+            const brauchtHilfe = status === "hilfe";
+            const istSlotHost = currentUser && currentUser === slotHost;
+            const istActualHost = currentUser && currentUser === actualHost;
+
+            // Anzeige-Host:
+            // - wenn jemand übernommen hat → actualHost
+            // - sonst → slotHost
+            const displayHost = actualHost || slotHost;
+
+            // Banner für diese Woche
+            if (!bannerSet && i === 0) {
+                document.getElementById("banner").innerHTML = `
+                    <div class="welcome-banner">
+                        <h2>Hoster der Woche (${datum.toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' })})</h2>
+                        <span class="host-now">${displayHost.toUpperCase()}</span>
+                        <p>hele şükür!</p>
+                    </div>`;
+                bannerSet = true;
             }
 
-            liste.innerHTML += `
-                <div class="event-card ${brauchtHilfe ? "is-help" : ""}">
+            listeHTML += `
+                <div class="event-card ${brauchtHilfe ? 'is-help' : ''}">
                     <div class="date-info">
-                        <span class="day">${datumAnzeige} (19:00 Uhr)</span>
-                        <div class="host-info ${istAktuellerHost ? "me" : ""}">
-                            ${brauchtHilfe ? "⚠️ kann nicht hosten!" : hostAnzeigeHTML}
-                            ${istAktuellerHost ? " (Du)" : ""}
-                        </div>
+                        <b>${datum.toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' })}</b>
+                        <span>Host: ${displayHost} ${istActualHost || istSlotHost ? '<span class="me-badge">DU</span>' : ''}</span>
+                        ${brauchtHilfe ? '<br><small style="color:red">kann nicht hosten! (sucht Ersatz)</small>' : ''}
+                        ${actualHost && actualHost !== slotHost ? `<br><small>übernommen von: ${actualHost}</small>` : ''}
                     </div>
-                    <div style="display:flex; gap:5px;">
-                        ${istAktuellerHost && !brauchtHilfe ? `<button class="btn-cancel" onclick="markiereHilfe(${t.id})">will abgeben</button>` : ""}
-                        ${istAktuellerHost && !brauchtHilfe ? `<button class="btn-done" style="background:#dcfce7; color:#166534;" onclick="hostErledigt(${t.id})">gehostet</button>` : ""}
-                        ${brauchtHilfe && !istAktuellerHost ? `<button class="btn-take" style="background:#22c55e; color:white;" onclick="tausche(${t.id})">kann übernehmen</button>` : ""}
+                    <div style="display:flex; gap:5px">
+                        ${istSlotHost && !brauchtHilfe && !actualHost ? `<button class="btn-give" onclick="hilfeAnfordern(${weekIndex})">Ich kann nicht</button>` : ''}
+                        ${istActualHost ? `<button class="btn-done" onclick="hostErledigt(${weekIndex})">Ich habe gehostet</button>` : ''}
+                        ${brauchtHilfe && !istSlotHost && !istActualHost ? `<button class="btn-take" onclick="übernehmen(${weekIndex})">Ich übernehme</button>` : ''}
                     </div>
                 </div>`;
-        });
+        }
+
+        document.getElementById("liste").innerHTML = listeHTML;
     }
 
-    client.channel("any").on("postgres_changes", { event: "*", schema: "public", table: "termine" }, render).subscribe();
     render();
 </script>
 </body>
